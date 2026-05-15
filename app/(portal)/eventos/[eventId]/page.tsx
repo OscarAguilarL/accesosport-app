@@ -128,7 +128,7 @@ function RegistrationCTA({
         <Button
           asChild
           size="lg"
-          className="w-full gap-2 bg-blue-600 font-bold text-white hover:bg-blue-700"
+          className="w-full gap-2 bg-[#023765] font-bold text-white hover:bg-[#023765]/85"
         >
           <Link href={`/login?redirect=${encodeURIComponent(`/eventos/${eventId}/inscribirse`)}`}>
             <LogIn className="h-4 w-4" />
@@ -145,7 +145,7 @@ function RegistrationCTA({
     <Button
       asChild
       size="lg"
-      className="font-barlow-condensed w-full bg-blue-600 text-lg font-bold uppercase tracking-wider text-white hover:bg-blue-700 active:scale-[0.98] transition-transform"
+      className="font-barlow-condensed w-full bg-[#023765] text-lg font-bold uppercase tracking-wider text-white hover:bg-[#023765]/85 active:scale-[0.98] transition-transform"
     >
       <Link href={`/eventos/${eventId}/inscribirse`}>
         {compact && minPrice !== undefined
@@ -197,7 +197,7 @@ export default function EventDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-8 w-8 text-amber-500" />
+        <Spinner className="h-8 w-8 text-[#fb5d02]" />
       </div>
     )
   }
@@ -241,7 +241,7 @@ export default function EventDetailPage() {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="h-full bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500">
+          <div className="h-full bg-gradient-to-br from-[#023765] via-[#023765]/80 to-[#023765]/60">
             <div className="flex h-full items-center justify-center">
               <Trophy className="h-24 w-24 text-black/15" />
             </div>
@@ -297,8 +297,8 @@ export default function EventDetailPage() {
             <div className="flex flex-wrap gap-4 rounded-2xl bg-white p-5 shadow-sm">
               {event.eventDate && (
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-                    <Clock className="h-5 w-5 text-amber-600" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100">
+                    <Clock className="h-5 w-5 text-orange-600" />
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Fecha</p>
@@ -310,8 +310,8 @@ export default function EventDetailPage() {
               )}
               {hasModalities && (
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-                    <Users className="h-5 w-5 text-amber-600" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100">
+                    <Users className="h-5 w-5 text-orange-600" />
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Lugares</p>
@@ -342,11 +342,11 @@ export default function EventDetailPage() {
                 {modalities.map((m) => (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-amber-100 bg-white p-4 shadow-sm"
+                    className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50">
-                        <Ruler className="h-5 w-5 text-amber-500" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50">
+                        <Ruler className="h-5 w-5 text-[#fb5d02]" />
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">{m.name}</p>

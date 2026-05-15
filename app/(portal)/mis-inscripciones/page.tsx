@@ -43,7 +43,7 @@ function StatusBadge({ status }: { status: RegistrationResponse['status'] }) {
     },
     PENDING_PAYMENT: {
       label: 'Pago pendiente',
-      className: 'bg-amber-100 text-amber-700 border border-amber-200',
+      className: 'bg-[#fb5d02]/10 text-[#023765] border border-[#023765]/20',
       icon: <Clock className="h-3.5 w-3.5" />,
     },
     CANCELLED: {
@@ -157,7 +157,7 @@ export default function MisInscripcionesPage() {
   if (isAuthLoading || (isLoading && isAuthenticated)) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-8 w-8 text-amber-500" />
+        <Spinner className="h-8 w-8 text-[#fb5d02]" />
       </div>
     )
   }
@@ -203,8 +203,8 @@ export default function MisInscripcionesPage() {
 
       {registrations.length === 0 ? (
         <div className="flex h-72 flex-col items-center justify-center gap-5 rounded-2xl bg-white shadow-sm">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
-            <Trophy className="h-10 w-10 text-amber-400" />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#023765]/10">
+            <Trophy className="h-10 w-10 text-[#fb5d02]" />
           </div>
           <div className="text-center">
             <p className="font-barlow-condensed text-2xl font-bold uppercase text-gray-800">
@@ -214,7 +214,7 @@ export default function MisInscripcionesPage() {
               Aún no tienes inscripciones. Explora los eventos disponibles y únete a una carrera.
             </p>
           </div>
-          <Button asChild className="gap-2 bg-blue-600 text-white hover:bg-blue-700">
+          <Button asChild className="gap-2 bg-[#023765] text-white hover:bg-[#023765]/85">
             <Link href="/eventos" className="flex items-center">
               <Search className="h-4 w-4" />
               Explorar eventos
@@ -238,7 +238,7 @@ export default function MisInscripcionesPage() {
                 className={`flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ${isCancelled ? 'opacity-60' : ''}`}
               >
                 {/* Color stripe by status */}
-                <div className={`h-1.5 ${isConfirmed ? 'bg-green-400' : reg.status === 'PENDING_PAYMENT' ? 'bg-amber-400' : 'bg-gray-300'}`} />
+                <div className={`h-1.5 ${isConfirmed ? 'bg-green-400' : reg.status === 'PENDING_PAYMENT' ? 'bg-[#fb5d02]' : 'bg-gray-300'}`} />
 
                 <div className="flex flex-1 flex-col p-5">
                   <div className="mb-3 flex items-start justify-between gap-2">
@@ -250,7 +250,7 @@ export default function MisInscripcionesPage() {
 
                   {reg.eventDate && (
                     <div className="mb-2 flex items-center gap-2 text-sm text-gray-600">
-                      <CalendarDays className="h-4 w-4 shrink-0 text-amber-500" />
+                      <CalendarDays className="h-4 w-4 shrink-0 text-[#fb5d02]" />
                       <span>{formatDate(reg.eventDate)}</span>
                     </div>
                   )}
@@ -265,7 +265,7 @@ export default function MisInscripcionesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                        className="w-full gap-2 border-[#023765]/20 text-[#023765] hover:bg-[#023765]/5"
                         disabled={isDownloading}
                         onClick={() => handleDownloadTicket(reg.id)}
                       >

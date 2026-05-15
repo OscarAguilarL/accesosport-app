@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { Zap, LogOut, LogIn, Menu, X, Calendar, Ticket, User, Home, LayoutDashboard } from 'lucide-react'
+import { LogOut, LogIn, Menu, X, Calendar, Ticket, User, Home, LayoutDashboard } from 'lucide-react'
 
 const navLinks = [
   { href: '/', label: 'Inicio', icon: Home, exact: true },
@@ -38,10 +39,10 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-amber-50">
+      <div className="flex h-screen items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
-          <Spinner className="h-8 w-8 text-amber-500" />
-          <p className="text-sm font-medium text-amber-700">Cargando...</p>
+          <Spinner className="h-8 w-8 text-[#fb5d02]" />
+          <p className="text-sm font-medium text-slate-500">Cargando...</p>
         </div>
       </div>
     )
@@ -50,20 +51,22 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   const visibleLinks = navLinks
 
   return (
-    <div className="flex min-h-screen flex-col bg-amber-50 font-barlow">
+    <div className="flex min-h-screen flex-col bg-white font-barlow">
       {/* Racing stripe + Header — fixed to top */}
       <div className="fixed left-0 right-0 top-0 z-40">
-        <div className="h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400" />
-        <header className="border-b border-amber-100 bg-white/95 shadow-sm backdrop-blur-sm">
+        <div className="h-1 bg-gradient-to-r from-[#fb5d02] via-[#fb5d02] to-[#fb5d02]" />
+        <header className="border-b border-gray-100 bg-white/95 shadow-sm backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400">
-              <Zap className="h-5 w-5 text-black" />
-            </div>
-            <span className="font-barlow-condensed text-xl font-bold tracking-wide text-gray-900">
-              ACCESOSPORT
-            </span>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/accesosport-logo-horizontal.svg"
+              alt="AccesoSport"
+              width={1175}
+              height={275}
+              className="h-14 w-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop nav */}
@@ -76,7 +79,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                   href={link.href}
                   className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
                     isActive
-                      ? 'bg-amber-100 text-amber-800'
+                      ? 'bg-[#023765] text-white'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
@@ -92,7 +95,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
               <div ref={avatarRef} className="relative">
                 <button
                   onClick={() => setAvatarOpen(!avatarOpen)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-400 text-sm font-bold text-black transition-all hover:bg-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fb5d02] text-sm font-bold text-black transition-all hover:bg-[#d95002] focus:outline-none focus:ring-2 focus:ring-[#fb5d02] focus:ring-offset-2"
                   aria-label="Menú de usuario"
                 >
                   {initials}
@@ -135,7 +138,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                           <Link
                             href="/dashboard"
                             onClick={() => setAvatarOpen(false)}
-                            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50"
+                            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[#023765] transition-colors hover:bg-[#023765]/5"
                           >
                             <LayoutDashboard className="h-4 w-4 text-blue-500" />
                             Panel de organizador
@@ -156,7 +159,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 )}
               </div>
             ) : (
-              <Button size="sm" asChild className="gap-2 bg-blue-600 text-white hover:bg-blue-700">
+              <Button size="sm" asChild className="gap-2 bg-[#023765] text-white hover:bg-[#023765]/85">
                 <Link href="/login" className="flex items-center">
                   <LogIn className="h-4 w-4" />
                   Iniciar sesión
@@ -185,14 +188,15 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-50 sm:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
           <div className="absolute left-0 right-0 top-0 bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-amber-100 px-4 py-4">
-              <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-400">
-                  <Zap className="h-4 w-4 text-black" />
-                </div>
-                <span className="font-barlow-condensed text-lg font-bold tracking-wide text-gray-900">
-                  ACCESOSPORT
-                </span>
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
+              <Link href="/" className="flex items-center" onClick={() => setMobileOpen(false)}>
+                <Image
+                  src="/accesosport-logo-horizontal.svg"
+                  alt="AccesoSport"
+                  width={1175}
+                  height={275}
+                  className="h-11 w-auto"
+                />
               </Link>
               <button
                 onClick={() => setMobileOpen(false)}
@@ -210,7 +214,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                     href={link.href}
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition-colors ${
-                      isActive ? 'bg-amber-100 text-amber-800' : 'text-gray-700 hover:bg-gray-50'
+                      isActive ? 'bg-[#023765] text-white' : 'text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     <link.icon className="h-4 w-4" />
@@ -224,7 +228,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 <div className="space-y-1">
                   {user && (
                     <div className="mb-2 flex items-center gap-3 rounded-lg px-3 py-2">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm font-bold text-black">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fb5d02] text-sm font-bold text-black">
                         {initials}
                       </div>
                       <div className="min-w-0">
@@ -241,7 +245,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                     <Link
                       href="/dashboard"
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                      className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-[#023765] hover:bg-[#023765]/5"
                     >
                       <LayoutDashboard className="h-4 w-4" />
                       Panel de organizador
@@ -259,7 +263,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 rounded-lg bg-blue-600 px-3 py-3 text-sm font-semibold text-white"
+                  className="flex items-center gap-3 rounded-lg bg-[#023765] px-3 py-3 text-sm font-semibold text-white"
                 >
                   <LogIn className="h-4 w-4" />
                   Iniciar sesión
@@ -276,16 +280,17 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-amber-100 bg-white py-8">
+      <footer className="border-t border-gray-100 bg-white py-8">
         <div className="mx-auto max-w-6xl px-4">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400">
-                <Zap className="h-3.5 w-3.5 text-black" />
-              </div>
-              <span className="font-barlow-condensed font-bold tracking-wide text-gray-900">
-                ACCESOSPORT
-              </span>
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/accesosport-logo-horizontal.svg"
+                alt="AccesoSport"
+                width={1175}
+                height={275}
+                className="h-10 w-auto"
+              />
             </Link>
             <div className="flex items-center gap-6 text-sm text-gray-500">
               <Link href="/eventos" className="hover:text-gray-900">Eventos</Link>

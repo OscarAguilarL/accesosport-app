@@ -32,7 +32,7 @@ function FeaturedEventCard({ event }: { event: EventSummaryResponse }) {
   return (
     <Link
       href={`/eventos/${event.id}`}
-      className="group relative flex aspect-[3/4] overflow-hidden rounded-2xl bg-amber-100 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:aspect-[4/5]"
+      className="group relative flex aspect-[3/4] overflow-hidden rounded-2xl bg-[#023765]/10 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:aspect-[4/5]"
     >
       {event.coverImageUrl ? (
         <img
@@ -42,7 +42,7 @@ function FeaturedEventCard({ event }: { event: EventSummaryResponse }) {
           loading="lazy"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#023765] via-[#023765]/80 to-[#023765]/60" />
       )}
 
       {/* Gradient overlay */}
@@ -50,7 +50,7 @@ function FeaturedEventCard({ event }: { event: EventSummaryResponse }) {
 
       {/* Price badge */}
       {event.minPrice !== undefined && (
-        <div className="absolute right-3 top-3 rounded-full bg-amber-400 px-3 py-1 text-xs font-bold text-black shadow">
+        <div className="absolute right-3 top-3 rounded-full bg-[#fb5d02] px-3 py-1 text-xs font-bold text-black shadow">
           {formatPrice(event.minPrice)}
         </div>
       )}
@@ -74,7 +74,7 @@ function FeaturedEventCard({ event }: { event: EventSummaryResponse }) {
             </div>
           )}
         </div>
-        <div className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-amber-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-[#fb5d02] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           Ver evento <ArrowRight className="h-4 w-4" />
         </div>
       </div>
@@ -97,23 +97,23 @@ export default function LandingPage() {
   return (
     <PortalLayout>
       {/* Hero */}
-      <section className="-mx-4 -mt-8 bg-amber-400 px-4 pb-20 pt-20 sm:pb-28 sm:pt-32">
+      <section className="-mx-4 -mt-8 bg-[#023765] px-4 pb-20 pt-20 sm:pb-28 sm:pt-32">
         <div className="relative mx-auto max-w-5xl">
           {/* Decorative */}
-          <div className="pointer-events-none absolute -right-8 -top-8 h-64 w-64 rounded-full bg-black/5" />
-          <div className="pointer-events-none absolute -bottom-4 left-1/3 h-40 w-40 rounded-full bg-white/10" />
+          <div className="pointer-events-none absolute -right-8 -top-8 h-64 w-64 rounded-full bg-white/5" />
+          <div className="pointer-events-none absolute -bottom-4 left-1/3 h-40 w-40 rounded-full bg-white/5" />
 
-          <p className="relative font-barlow text-sm font-bold uppercase tracking-widest text-amber-900">
+          <p className="relative font-barlow text-sm font-bold uppercase tracking-widest text-[#fb5d02]">
             La plataforma de carreras atléticas
           </p>
-          <h1 className="font-barlow-condensed relative mt-3 text-[clamp(3.5rem,10vw,6.5rem)] font-extrabold uppercase leading-none tracking-tight text-black">
+          <h1 className="font-barlow-condensed relative mt-3 text-[clamp(3.5rem,10vw,6.5rem)] font-extrabold uppercase leading-none tracking-tight text-white">
             Corre.<br />Supérate.<br />Inscríbete.
           </h1>
-          <p className="relative mt-6 max-w-lg font-barlow text-lg font-medium text-amber-950">
+          <p className="relative mt-6 max-w-lg font-barlow text-lg font-medium text-white/75">
             Encuentra las mejores carreras atléticas de tu ciudad, inscríbete en segundos y recibe tu boleto al instante.
           </p>
           <div className="relative mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="gap-2 bg-black px-7 font-semibold text-white hover:bg-black/80">
+            <Button asChild size="lg" className="gap-2 bg-[#fb5d02] px-7 font-semibold text-white hover:bg-[#d95002]">
               <Link href="/eventos">
                 Ver todos los eventos
                 <ChevronRight className="h-4 w-4" />
@@ -123,7 +123,7 @@ export default function LandingPage() {
               asChild
               size="lg"
               variant="outline"
-              className="border-black/20 bg-white/40 font-semibold hover:bg-white/60"
+              className="border-white/30 bg-white/10 font-semibold text-white hover:bg-white/20"
             >
               <Link href="/signup">Crear cuenta gratis</Link>
             </Button>
@@ -135,14 +135,14 @@ export default function LandingPage() {
       <section className="py-16">
         <div className="mb-8 flex items-end justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-amber-600">Próximas carreras</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-orange-600">Próximas carreras</p>
             <h2 className="font-barlow-condensed mt-1 text-4xl font-extrabold uppercase text-gray-900">
               Eventos disponibles
             </h2>
           </div>
           <Link
             href="/eventos"
-            className="flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
+            className="flex items-center gap-1 text-sm font-semibold text-[#023765] hover:underline"
           >
             Ver todos <ArrowRight className="h-4 w-4" />
           </Link>
@@ -150,11 +150,11 @@ export default function LandingPage() {
 
         {isLoading ? (
           <div className="flex h-48 items-center justify-center">
-            <Spinner className="h-8 w-8 text-amber-500" />
+            <Spinner className="h-8 w-8 text-[#fb5d02]" />
           </div>
         ) : featuredEvents.length === 0 ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-2xl bg-white text-center shadow-sm">
-            <Trophy className="h-10 w-10 text-amber-300" />
+            <Trophy className="h-10 w-10 text-orange-300" />
             <div>
               <p className="font-barlow-condensed text-xl font-bold uppercase text-gray-700">Próximamente</p>
               <p className="text-sm text-gray-500">Estamos preparando nuevas carreras</p>
@@ -172,7 +172,7 @@ export default function LandingPage() {
       {/* How it works */}
       <section className="-mx-4 bg-gray-900 px-4 py-16">
         <div className="mx-auto max-w-4xl">
-          <p className="text-center text-xs font-bold uppercase tracking-widest text-amber-400">Simple y rápido</p>
+          <p className="text-center text-xs font-bold uppercase tracking-widest text-[#fb5d02]">Simple y rápido</p>
           <h2 className="font-barlow-condensed mt-2 text-center text-4xl font-extrabold uppercase text-white sm:text-5xl">
             ¿Cómo funciona?
           </h2>
@@ -198,11 +198,11 @@ export default function LandingPage() {
               },
             ].map((item) => (
               <div key={item.step} className="flex flex-col items-center text-center">
-                <span className="font-barlow-condensed text-7xl font-black leading-none text-amber-400">
+                <span className="font-barlow-condensed text-7xl font-black leading-none text-[#fb5d02]">
                   {item.step}
                 </span>
                 <div className="mt-3 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
-                  <item.icon className="h-6 w-6 text-amber-400" />
+                  <item.icon className="h-6 w-6 text-[#fb5d02]" />
                 </div>
                 <h3 className="font-barlow-condensed mt-3 text-2xl font-bold uppercase text-white">
                   {item.title}
@@ -215,22 +215,22 @@ export default function LandingPage() {
       </section>
 
       {/* CTA banner */}
-      <section className="-mx-4 bg-amber-400 px-4 py-16 text-center">
-        <h2 className="font-barlow-condensed text-4xl font-extrabold uppercase text-black sm:text-5xl">
+      <section className="-mx-4 bg-[#023765] px-4 py-16 text-center">
+        <h2 className="font-barlow-condensed text-4xl font-extrabold uppercase text-white sm:text-5xl">
           ¿Listo para tu próxima carrera?
         </h2>
-        <p className="mt-3 font-medium text-amber-900">
+        <p className="mt-3 font-medium text-white/80">
           Únete a miles de corredores que ya usan AccesoSport
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button asChild size="lg" className="gap-2 bg-black px-8 font-semibold text-white hover:bg-black/80">
+          <Button asChild size="lg" className="gap-2 bg-[#fb5d02] px-8 font-semibold text-white hover:bg-[#d95002]">
             <Link href="/eventos">Explorar eventos</Link>
           </Button>
           <Button
             asChild
             size="lg"
             variant="outline"
-            className="border-black/20 bg-white/40 font-semibold hover:bg-white/60"
+            className="border-white/30 bg-white/10 font-semibold text-white hover:bg-white/20"
           >
             <Link href="/signup">Registrarse gratis</Link>
           </Button>

@@ -75,8 +75,8 @@ export default function DashboardPage() {
           value={stats.totalEvents}
           subtitle="eventos creados"
           icon={LayoutGrid}
-          iconClass="text-blue-600"
-          bgClass="bg-blue-100"
+          iconClass="text-[#023765]"
+          bgClass="bg-[#023765]/10"
         />
         <StatCard
           title="Eventos Activos"
@@ -99,8 +99,8 @@ export default function DashboardPage() {
           value={stats.upcomingEvents}
           subtitle="por celebrar"
           icon={Clock}
-          iconClass="text-amber-600"
-          bgClass="bg-amber-100"
+          iconClass="text-[#fb5d02]"
+          bgClass="bg-[#fb5d02]/10"
         />
       </div>
 
@@ -143,8 +143,8 @@ export default function DashboardPage() {
                     success: 'bg-emerald-100 text-emerald-700',
                     destructive: 'bg-red-100 text-red-700',
                     secondary: 'bg-slate-100 text-slate-600',
-                    warning: 'bg-amber-100 text-amber-700',
-                    default: 'bg-blue-100 text-blue-700',
+                    warning: 'bg-[#fb5d02]/10 text-[#fb5d02]',
+                    default: 'bg-[#023765]/10 text-[#023765]',
                     outline: 'bg-slate-100 text-slate-500',
                   }
                   return (

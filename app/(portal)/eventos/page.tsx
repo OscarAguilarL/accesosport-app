@@ -39,7 +39,7 @@ function EventCard({ event }: { event: EventSummaryResponse }) {
   return (
     <Link
       href={`/eventos/${event.id}`}
-      className="group relative flex aspect-[4/3] overflow-hidden rounded-2xl bg-amber-100 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+      className="group relative flex aspect-[4/3] overflow-hidden rounded-2xl bg-[#023765]/10 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
     >
       {/* Background */}
       {event.coverImageUrl ? (
@@ -50,7 +50,7 @@ function EventCard({ event }: { event: EventSummaryResponse }) {
           loading="lazy"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#023765] via-[#023765]/80 to-[#023765]/60" />
       )}
 
       {/* Gradient overlay */}
@@ -68,7 +68,7 @@ function EventCard({ event }: { event: EventSummaryResponse }) {
       {/* Badges */}
       <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
         {event.minPrice !== undefined && (
-          <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-xs font-bold text-black shadow">
+          <span className="rounded-full bg-[#fb5d02] px-2.5 py-0.5 text-xs font-bold text-black shadow">
             {formatPrice(event.minPrice)}
           </span>
         )}
@@ -144,7 +144,7 @@ export default function EventosPage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-8 w-8 text-amber-500" />
+        <Spinner className="h-8 w-8 text-[#fb5d02]" />
       </div>
     )
   }
@@ -162,7 +162,7 @@ export default function EventosPage() {
       {/* Page header */}
       <div className="mb-8 flex items-end justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#fb5d02]">
             {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
           </p>
           <h1 className="font-barlow-condensed text-4xl font-extrabold uppercase text-gray-900 sm:text-5xl">
@@ -173,14 +173,14 @@ export default function EventosPage() {
           onClick={() => setShowFilters(!showFilters)}
           className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
             hasActiveFilters
-              ? 'border-amber-400 bg-amber-50 text-amber-700'
+              ? 'border-[#023765] bg-[#023765]/5 text-[#023765]'
               : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
           }`}
         >
           <SlidersHorizontal className="h-4 w-4" />
           Filtrar
           {hasActiveFilters && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-black">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#fb5d02] text-[10px] font-bold text-black">
               !
             </span>
           )}
@@ -189,7 +189,7 @@ export default function EventosPage() {
 
       {/* Filters panel */}
       {showFilters && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-gray-700">Filtrar por fecha</p>
             {hasActiveFilters && (
@@ -209,7 +209,7 @@ export default function EventosPage() {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="border-amber-200 bg-amber-50/50 focus:border-amber-400"
+                className="border-gray-200 bg-gray-50/50 focus:border-[#023765]"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -218,7 +218,7 @@ export default function EventosPage() {
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="border-amber-200 bg-amber-50/50 focus:border-amber-400"
+                className="border-gray-200 bg-gray-50/50 focus:border-[#023765]"
               />
             </div>
           </div>
@@ -228,7 +228,7 @@ export default function EventosPage() {
       {/* Events grid */}
       {filteredEvents.length === 0 ? (
         <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-2xl bg-white shadow-sm">
-          <Trophy className="h-14 w-14 text-amber-300" />
+          <Trophy className="h-14 w-14 text-[#023765]/30" />
           <div className="text-center">
             <p className="font-barlow-condensed text-2xl font-bold uppercase text-gray-800">
               {eventList.length > 0 ? 'Sin resultados' : '¡Próximamente!'}
@@ -240,7 +240,7 @@ export default function EventosPage() {
             </p>
           </div>
           {hasActiveFilters && (
-            <Button variant="outline" size="sm" onClick={clearFilters} className="border-amber-300 text-amber-700 hover:bg-amber-50">
+            <Button variant="outline" size="sm" onClick={clearFilters} className="border-[#023765]/30 text-[#023765] hover:bg-[#023765]/5">
               Limpiar filtros
             </Button>
           )}
