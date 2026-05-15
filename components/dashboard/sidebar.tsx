@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
@@ -13,7 +14,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Zap,
   Trophy,
 } from 'lucide-react'
 
@@ -47,24 +47,31 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     >
       {/* Logo */}
       <div className={cn(
-        'flex h-16 shrink-0 items-center border-b border-sidebar-border px-3',
+        'flex h-20 shrink-0 items-center border-b border-sidebar-border px-3',
         isCollapsed ? 'justify-center' : 'justify-between'
       )}>
         {!isCollapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-sm font-semibold tracking-wide text-sidebar-accent-foreground">
-              AccesoSport
-            </span>
+          <Link href="/dashboard" className="flex items-center">
+            <Image
+              src="/accesosport-logo.svg"
+              alt="AccesoSport"
+              width={1536}
+              height={1024}
+              className="h-16 w-auto"
+              priority
+            />
           </Link>
         )}
         {isCollapsed && (
           <Link href="/dashboard">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
+            <Image
+              src="/accesosport-icon.svg"
+              alt="AccesoSport"
+              width={644}
+              height={414}
+              className="h-10 w-auto"
+              priority
+            />
           </Link>
         )}
         <button
