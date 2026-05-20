@@ -87,14 +87,17 @@ function FeaturedEventCard({ event }: { event: EventSummaryResponse }) {
 
 export default function LandingPage() {
   const [featuredEvents, setFeaturedEvents] = useState<EventSummaryResponse[]>([])
+  const [publishedEvents, setPublishedEvents] = useState<EventSummaryResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    eventsApi
-      .listAvailable()
-      .then((data) => setFeaturedEvents(data.slice(0, 3)))
-      .catch(() => {})
-      .finally(() => setIsLoading(false))
+    Promise.all([
+      eventsApi.listAvailable().catch(() => [] as EventSummaryResponse[]),
+      eventsApi.listPublished().catch(() => [] as EventSummaryResponse[]),
+    ]).then(([available, published]) => {
+      setFeaturedEvents(available.slice(0, 3))
+      setPublishedEvents(published.slice(0, 3))
+    }).finally(() => setIsLoading(false))
   }, [])
 
   return (
@@ -171,6 +174,31 @@ export default function LandingPage() {
           </div>
         )}
       </section>
+
+      {/* Upcoming events (published, registrations not yet open) */}
+      {!isLoading && publishedEvents.length > 0 && (
+        <section className="py-16">
+          <div className="mb-8 flex items-end justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-[#023765]">Próximamente</p>
+              <h2 className="font-barlow-condensed mt-1 text-4xl font-extrabold uppercase text-gray-900">
+                Eventos anunciados
+              </h2>
+            </div>
+            <Link
+              href="/eventos"
+              className="flex items-center gap-1 text-sm font-semibold text-[#023765] hover:underline"
+            >
+              Ver todos <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {publishedEvents.map((event) => (
+              <FeaturedEventCard key={event.id} event={event} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* How it works */}
       <section className="-mx-4 bg-gray-900 px-4 py-16">

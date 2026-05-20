@@ -7,7 +7,7 @@ import type { EventSummaryResponse } from '@/lib/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { CalendarDays, MapPin, Trophy, SlidersHorizontal, X } from 'lucide-react'
+import { CalendarDays, MapPin, Trophy, SlidersHorizontal, X, Clock } from 'lucide-react'
 
 function formatDateShort(dateString?: string): string {
   if (!dateString) return ''
@@ -29,7 +29,7 @@ function formatPrice(price?: number): string {
   }).format(price)
 }
 
-function EventCard({ event }: { event: EventSummaryResponse }) {
+function EventCard({ event, isUpcoming = false }: { event: EventSummaryResponse; isUpcoming?: boolean }) {
   const [imgError, setImgError] = useState(false)
   const isSoldOut = event.totalAvailableSpots === 0
   const isLastSpots =
@@ -52,14 +52,19 @@ function EventCard({ event }: { event: EventSummaryResponse }) {
           onError={() => setImgError(true)}
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#023765] via-[#023765]/80 to-[#023765]/60" />
+        <div className={`absolute inset-0 bg-gradient-to-br ${isUpcoming ? 'from-[#023765]/70 via-[#023765]/50 to-[#023765]/30' : 'from-[#023765] via-[#023765]/80 to-[#023765]/60'}`} />
       )}
 
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
 
+      {/* Upcoming dimming overlay */}
+      {isUpcoming && (
+        <div className="absolute inset-0 bg-black/20" />
+      )}
+
       {/* Sold out overlay */}
-      {isSoldOut && (
+      {isSoldOut && !isUpcoming && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           <span className="font-barlow-condensed rounded-lg border-2 border-white/60 px-5 py-2 text-2xl font-extrabold uppercase tracking-widest text-white/80">
             Agotado
@@ -69,12 +74,18 @@ function EventCard({ event }: { event: EventSummaryResponse }) {
 
       {/* Badges */}
       <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-        {event.minPrice !== undefined && (
+        {isUpcoming && (
+          <span className="flex items-center gap-1 rounded-full bg-[#023765] px-2.5 py-0.5 text-xs font-bold text-white shadow">
+            <Clock className="h-3 w-3" />
+            Próximamente
+          </span>
+        )}
+        {!isUpcoming && event.minPrice !== undefined && (
           <span className="rounded-full bg-[#fb5d02] px-2.5 py-0.5 text-xs font-bold text-black shadow">
             {formatPrice(event.minPrice)}
           </span>
         )}
-        {isLastSpots && (
+        {!isUpcoming && isLastSpots && (
           <span className="rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow">
             ¡Últimos lugares!
           </span>
@@ -109,7 +120,8 @@ function EventCard({ event }: { event: EventSummaryResponse }) {
 }
 
 export default function EventosPage() {
-  const [eventList, setEventList] = useState<EventSummaryResponse[]>([])
+  const [availableEvents, setAvailableEvents] = useState<EventSummaryResponse[]>([])
+  const [publishedEvents, setPublishedEvents] = useState<EventSummaryResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
@@ -117,9 +129,14 @@ export default function EventosPage() {
   const [dateTo, setDateTo] = useState('')
 
   useEffect(() => {
-    eventsApi
-      .listAvailable()
-      .then(setEventList)
+    Promise.all([
+      eventsApi.listAvailable().catch((err) => { throw err }),
+      eventsApi.listPublished().catch(() => [] as EventSummaryResponse[]),
+    ])
+      .then(([available, published]) => {
+        setAvailableEvents(available)
+        setPublishedEvents(published)
+      })
       .catch((err) => {
         setError(
           err instanceof ApiError ? (err.detail || err.message) : 'Error al cargar los eventos.'
@@ -128,14 +145,17 @@ export default function EventosPage() {
       .finally(() => setIsLoading(false))
   }, [])
 
-  const filteredEvents = useMemo(() => {
-    return eventList.filter((event) => {
+  const applyDateFilter = (events: EventSummaryResponse[]) =>
+    events.filter((event) => {
       if (dateFrom && event.eventDate && new Date(event.eventDate) < new Date(dateFrom)) return false
       if (dateTo && event.eventDate && new Date(event.eventDate) > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
-  }, [eventList, dateFrom, dateTo])
 
+  const filteredAvailable = useMemo(() => applyDateFilter(availableEvents), [availableEvents, dateFrom, dateTo])
+  const filteredPublished = useMemo(() => applyDateFilter(publishedEvents), [publishedEvents, dateFrom, dateTo])
+
+  const totalFiltered = filteredAvailable.length + filteredPublished.length
   const hasActiveFilters = dateFrom || dateTo
 
   const clearFilters = () => {
@@ -165,10 +185,10 @@ export default function EventosPage() {
       <div className="mb-8 flex items-end justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-[#fb5d02]">
-            {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
+            {totalFiltered} {totalFiltered === 1 ? 'evento' : 'eventos'}
           </p>
           <h1 className="font-barlow-condensed text-4xl font-extrabold uppercase text-gray-900 sm:text-5xl">
-            Carreras disponibles
+            Todas las carreras
           </h1>
         </div>
         <button
@@ -192,7 +212,7 @@ export default function EventosPage() {
       {/* Filters panel */}
       {showFilters && (
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex items-center justify-between">
             <p className="text-sm font-semibold text-gray-700">Filtrar por fecha</p>
             {hasActiveFilters && (
               <button
@@ -227,16 +247,15 @@ export default function EventosPage() {
         </div>
       )}
 
-      {/* Events grid */}
-      {filteredEvents.length === 0 ? (
+      {totalFiltered === 0 && (
         <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-2xl bg-white shadow-sm">
           <Trophy className="h-14 w-14 text-[#023765]/30" />
           <div className="text-center">
             <p className="font-barlow-condensed text-2xl font-bold uppercase text-gray-800">
-              {eventList.length > 0 ? 'Sin resultados' : '¡Próximamente!'}
+              {availableEvents.length + publishedEvents.length > 0 ? 'Sin resultados' : '¡Próximamente!'}
             </p>
             <p className="mt-1 text-sm text-gray-500">
-              {eventList.length > 0
+              {availableEvents.length + publishedEvents.length > 0
                 ? 'Prueba ajustando los filtros de fecha.'
                 : 'Estamos preparando nuevas carreras. Vuelve pronto.'}
             </p>
@@ -247,12 +266,40 @@ export default function EventosPage() {
             </Button>
           )}
         </div>
-      ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredEvents.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
+      )}
+
+      {/* Open registration events */}
+      {filteredAvailable.length > 0 && (
+        <section className="mb-12">
+          <div className="mb-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#fb5d02]">Inscripciones abiertas</p>
+            <h2 className="font-barlow-condensed mt-0.5 text-3xl font-extrabold uppercase text-gray-900">
+              Disponibles ahora
+            </h2>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredAvailable.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Published (coming soon) events */}
+      {filteredPublished.length > 0 && (
+        <section>
+          <div className="mb-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#023765]">Inscripciones próximas</p>
+            <h2 className="font-barlow-condensed mt-0.5 text-3xl font-extrabold uppercase text-gray-900">
+              Próximos eventos
+            </h2>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredPublished.map((event) => (
+              <EventCard key={event.id} event={event} isUpcoming />
+            ))}
+          </div>
+        </section>
       )}
     </div>
   )

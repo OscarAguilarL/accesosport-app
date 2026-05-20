@@ -252,6 +252,22 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                       </div>
                     </div>
                   )}
+                  <Link
+                    href="/perfil"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    <User className="h-4 w-4" />
+                    Mi perfil
+                  </Link>
+                  <Link
+                    href="/mis-inscripciones"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    <Ticket className="h-4 w-4" />
+                    Mis inscripciones
+                  </Link>
                   {isOrganizer && (
                     <Link
                       href="/dashboard"
