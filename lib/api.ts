@@ -101,13 +101,13 @@ export const events = {
     fetchApi<EventSummaryResponse[]>('/api/v1/events/my-events'),
 
   listAvailable: () =>
-    fetchApi<EventSummaryResponse[]>('/api/v1/events/available'),
+    fetchApi<EventSummaryResponse[]>('/api/v1/public/events/available'),
 
   listPublished: () =>
     fetchApi<EventSummaryResponse[]>('/api/v1/public/events/published'),
 
   get: (eventId: string) =>
-    fetchApi<EventResponse>(`/api/v1/events/${eventId}`),
+    fetchApi<EventResponse>(`/api/v1/public/events/${eventId}`),
     
   create: (data: CreateEventRequest) =>
     fetchApi<EventResponse>('/api/v1/events', {
@@ -160,7 +160,7 @@ export const events = {
   },
   
   getGallery: (eventId: string) =>
-    fetchApi<{ id: string; imageUrl: string; displayOrder: number }[]>(`/api/v1/events/${eventId}/images`),
+    fetchApi<{ id: string; imageUrl: string; displayOrder: number }[]>(`/api/v1/public/events/${eventId}/images`),
     
   addGalleryImage: async (eventId: string, file: File) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
@@ -252,7 +252,7 @@ export const profile = {
 // Categories endpoints
 export const categories = {
   list: (eventId: string) =>
-    fetchApi<EventCategoryResponse[]>(`/api/v1/events/${eventId}/categories`),
+    fetchApi<EventCategoryResponse[]>(`/api/v1/public/events/${eventId}/categories`),
 
   create: (eventId: string, data: CreateCategoryRequest) =>
     fetchApi<EventCategoryResponse>(`/api/v1/events/${eventId}/categories`, {
@@ -269,7 +269,7 @@ export const categories = {
 // Modalities endpoints
 export const modalities = {
   list: (eventId: string) =>
-    fetchApi<EventModalityResponse[]>(`/api/v1/events/${eventId}/modalities`),
+    fetchApi<EventModalityResponse[]>(`/api/v1/public/events/${eventId}/modalities`),
 
   create: (eventId: string, data: CreateModalityRequest) =>
     fetchApi<EventModalityResponse>(`/api/v1/events/${eventId}/modalities`, {

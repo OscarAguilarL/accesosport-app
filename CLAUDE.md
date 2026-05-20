@@ -23,8 +23,12 @@ PUT  /api/v1/user/personal-information           → 204
 PUT  /api/v1/user/address                        → 204
 
 GET  /api/v1/events                              → EventSummaryResponse[]  (acepta ?eventStatus=)
-GET  /api/v1/events/available                    → EventSummaryResponse[]  (estado REGISTRATION_OPEN)
-GET  /api/v1/events/{id}                         → EventResponse
+GET  /api/v1/public/events/available             → EventSummaryResponse[]  (estado REGISTRATION_OPEN, sin auth)
+GET  /api/v1/public/events/published             → EventSummaryResponse[]  (sin auth)
+GET  /api/v1/public/events/{id}                  → EventResponse           (sin auth)
+GET  /api/v1/public/events/{id}/modalities       → ModalityResponse[]      (sin auth)
+GET  /api/v1/public/events/{id}/categories       → CategoryResponse[]      (sin auth)
+GET  /api/v1/public/events/{id}/images           → EventImageResponse[]    (sin auth)
 GET  /api/v1/events/my-events                    → EventSummaryResponse[]  (ORGANIZER/ADMIN)
 POST /api/v1/events                              → EventResponse           (ORGANIZER/ADMIN)
 PATCH /api/v1/events/{id}                        → EventResponse           (ORGANIZER/ADMIN, solo en DRAFT)
@@ -34,7 +38,6 @@ PUT  /api/v1/events/{id}/complete                → EventResponse           (OR
 DELETE /api/v1/events/{id}/cancel?reason=...     → EventResponse           (ORGANIZER/ADMIN)
 PUT  /api/v1/events/{id}/cover-image             → EventResponse           (multipart, ORGANIZER/ADMIN)
 POST /api/v1/events/{id}/images                  → EventImageResponse      (multipart, ORGANIZER/ADMIN)
-GET  /api/v1/events/{id}/images                  → EventImageResponse[]
 DELETE /api/v1/events/{id}/images/{imageId}      → 204                     (ORGANIZER/ADMIN)
 
 GET  /api/v1/user/profile/organizer              → OrganizerProfileResponse
