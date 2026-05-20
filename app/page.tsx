@@ -29,17 +29,20 @@ function formatPrice(price?: number): string {
 }
 
 function FeaturedEventCard({ event }: { event: EventSummaryResponse }) {
+  const [imgError, setImgError] = useState(false)
+
   return (
     <Link
       href={`/eventos/${event.id}`}
-      className="group relative flex aspect-[3/4] overflow-hidden rounded-2xl bg-[#023765]/10 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:aspect-[4/5]"
+      className="group relative flex aspect-[4/3] overflow-hidden rounded-2xl bg-[#023765]/10 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
     >
-      {event.coverImageUrl ? (
+      {event.coverImageUrl && !imgError ? (
         <img
           src={event.coverImageUrl}
           alt={event.name}
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
+          onError={() => setImgError(true)}
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-[#023765] via-[#023765]/80 to-[#023765]/60" />
