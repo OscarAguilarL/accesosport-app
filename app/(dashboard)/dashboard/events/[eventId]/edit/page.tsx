@@ -14,6 +14,7 @@ import { ImageDropzone } from '@/components/ui/image-dropzone'
 import { events as eventsApi, ApiError } from '@/lib/api'
 import type { UpdateEventRequest, EventResponse, EventImageResponse } from '@/lib/types'
 import { ArrowLeft, Activity, Calendar, MapPin, Users, ImageIcon, X, ScrollText } from 'lucide-react'
+import { DateTimePicker } from '@/components/ui/datetime-picker'
 
 type GalleryItem = { file: File; preview: string }
 
@@ -198,12 +199,11 @@ export default function EditEventPage({ params }: { params: Promise<{ eventId: s
             <CardContent>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="eventDate">Fecha y Hora del Evento</FieldLabel>
-                  <Input
-                    id="eventDate"
-                    type="datetime-local"
+                  <FieldLabel>Fecha y Hora del Evento</FieldLabel>
+                  <DateTimePicker
                     value={formData.eventDate ?? ''}
-                    onChange={(e) => update('eventDate', e.target.value)}
+                    onChange={(v) => update('eventDate', v)}
+                    placeholder="Seleccionar fecha y hora del evento"
                   />
                 </Field>
 
@@ -258,21 +258,19 @@ export default function EditEventPage({ params }: { params: Promise<{ eventId: s
               <FieldGroup>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
-                    <FieldLabel htmlFor="registrationStartDate">Inicio de Inscripciones</FieldLabel>
-                    <Input
-                      id="registrationStartDate"
-                      type="datetime-local"
+                    <FieldLabel>Inicio de Inscripciones</FieldLabel>
+                    <DateTimePicker
                       value={formData.registrationStartDate ?? ''}
-                      onChange={(e) => update('registrationStartDate', e.target.value)}
+                      onChange={(v) => update('registrationStartDate', v)}
+                      placeholder="Seleccionar fecha de apertura"
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="registrationEndDate">Fin de Inscripciones</FieldLabel>
-                    <Input
-                      id="registrationEndDate"
-                      type="datetime-local"
+                    <FieldLabel>Fin de Inscripciones</FieldLabel>
+                    <DateTimePicker
                       value={formData.registrationEndDate ?? ''}
-                      onChange={(e) => update('registrationEndDate', e.target.value)}
+                      onChange={(v) => update('registrationEndDate', v)}
+                      placeholder="Seleccionar fecha de cierre"
                     />
                   </Field>
                 </div>
