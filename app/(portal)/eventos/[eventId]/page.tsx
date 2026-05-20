@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import {
@@ -9,20 +9,21 @@ import {
   modalities as modalitiesApi,
   ApiError,
 } from '@/lib/api'
-import type { EventResponse, RegistrationResponse, EventModalityResponse } from '@/lib/types'
+import type { EventResponse, RegistrationResponse, EventModalityResponse, EventImageResponse } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   CalendarDays,
   MapPin,
   Users,
   ChevronLeft,
+  ChevronRight,
   Trophy,
   CheckCircle2,
   LogIn,
   Ruler,
-  Clock,
 } from 'lucide-react'
 
 function formatDate(dateString?: string): string {
@@ -164,6 +165,8 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventResponse | null>(null)
   const [modalities, setModalities] = useState<EventModalityResponse[]>([])
   const [myRegistration, setMyRegistration] = useState<RegistrationResponse | null>(null)
+  const [galleryImages, setGalleryImages] = useState<EventImageResponse[]>([])
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -171,16 +174,30 @@ export default function EventDetailPage() {
     Promise.all([
       eventsApi.get(eventId),
       modalitiesApi.list(eventId).catch(() => [] as EventModalityResponse[]),
+      eventsApi.getGallery(eventId).catch(() => []),
     ])
-      .then(([eventData, modalitiesData]) => {
+      .then(([eventData, modalitiesData, galleryData]) => {
         setEvent(eventData)
         setModalities(modalitiesData)
+        const sorted = [...galleryData].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+        setGalleryImages(sorted)
       })
       .catch((err) => {
         setError(err instanceof ApiError ? (err.detail || err.message) : 'Error al cargar el evento.')
       })
       .finally(() => setIsLoading(false))
   }, [eventId])
+
+  const openLightbox = useCallback((index: number) => setLightboxIndex(index), [])
+  const closeLightbox = useCallback(() => setLightboxIndex(null), [])
+  const prevImage = useCallback(() =>
+    setLightboxIndex((i) => (i === null ? null : (i - 1 + galleryImages.length) % galleryImages.length)),
+    [galleryImages.length]
+  )
+  const nextImage = useCallback(() =>
+    setLightboxIndex((i) => (i === null ? null : (i + 1) % galleryImages.length)),
+    [galleryImages.length]
+  )
 
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
@@ -232,93 +249,117 @@ export default function EventDetailPage() {
         </Link>
       </Button>
 
-      {/* Hero cover — full bleed */}
-      <div className="-mx-4 relative mb-8 h-64 overflow-hidden sm:h-80 md:h-96 md:rounded-2xl">
-        {event.coverImageUrl ? (
-          <img
-            src={event.coverImageUrl}
-            alt={event.name}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="h-full bg-gradient-to-br from-[#023765] via-[#023765]/80 to-[#023765]/60">
-            <div className="flex h-full items-center justify-center">
-              <Trophy className="h-24 w-24 text-black/15" />
+      {/* Two-column layout: poster left, content right */}
+      <div className="grid gap-6 lg:grid-cols-[2fr_3fr] lg:items-start lg:gap-8">
+
+        {/* Left — title + metadata + poster (sticky on desktop) */}
+        <div className="lg:sticky lg:top-24">
+          {/* Title & metadata */}
+          <div className="mb-4 space-y-2">
+            <h1 className="font-barlow-condensed text-3xl font-extrabold uppercase leading-tight tracking-tight text-gray-900 sm:text-4xl">
+              {event.name}
+            </h1>
+            <div className="flex flex-col gap-1.5 text-sm text-gray-500">
+              {event.eventDate && (
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-[#fb5d02]" />
+                  <span className="capitalize">{formatDate(event.eventDate)}</span>
+                </div>
+              )}
+              {event.location && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 shrink-0 text-[#fb5d02]" />
+                  <span>
+                    {[event.location.place, event.location.city, event.location.country]
+                      .filter(Boolean)
+                      .join(', ') || event.location.fullAddress}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-        )}
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/5" />
 
-        {/* Overlay content */}
-        <div className="absolute bottom-0 left-0 right-0 px-4 pb-6">
-          {/* Status badge */}
-          {event.status && (
-            <span
-              className={`mb-3 inline-flex rounded-full px-3 py-1 text-xs font-bold shadow ${
-                event.status === 'REGISTRATION_OPEN'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-white/90 text-gray-800'
-              }`}
-            >
-              {STATUS_LABELS[event.status] ?? event.status}
-            </span>
-          )}
-          <h1 className="font-barlow-condensed text-4xl font-extrabold uppercase leading-tight tracking-tight text-white drop-shadow sm:text-5xl">
-            {event.name}
-          </h1>
-          <div className="mt-3 flex flex-wrap gap-4 text-sm text-white/85">
-            {event.eventDate && (
-              <div className="flex items-center gap-1.5">
-                <CalendarDays className="h-4 w-4 shrink-0" />
-                <span className="capitalize">{formatDate(event.eventDate)}</span>
+          {/* Poster */}
+          <div className="relative max-h-[480px] overflow-hidden rounded-2xl bg-black lg:max-h-none lg:aspect-[3/4]">
+            {event.coverImageUrl ? (
+              <>
+                <img
+                  src={event.coverImageUrl}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl brightness-[0.3]"
+                />
+                <img
+                  src={event.coverImageUrl}
+                  alt={event.name}
+                  className="relative h-full w-full object-contain"
+                  style={{ minHeight: '280px' }}
+                />
+              </>
+            ) : (
+              <div className="flex aspect-[3/4] items-center justify-center bg-gradient-to-br from-[#023765] via-[#023765]/80 to-[#023765]/60">
+                <Trophy className="h-24 w-24 text-white/15" />
               </div>
             )}
-            {event.location && (
-              <div className="flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 shrink-0" />
-                <span>
-                  {[event.location.place, event.location.city, event.location.country]
-                    .filter(Boolean)
-                    .join(', ') || event.location.fullAddress}
+            {/* Status badge */}
+            {event.status && (
+              <div className="absolute left-3 top-3">
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold shadow-lg ${
+                    event.status === 'REGISTRATION_OPEN'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-white/90 text-gray-800'
+                  }`}
+                >
+                  {STATUS_LABELS[event.status] ?? event.status}
                 </span>
               </div>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Main */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Key stats row */}
-          {(hasModalities || event.eventDate) && (
-            <div className="flex flex-wrap gap-4 rounded-2xl bg-white p-5 shadow-sm">
-              {event.eventDate && (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100">
-                    <Clock className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Fecha</p>
-                    <p className="text-sm font-semibold capitalize text-gray-900">
-                      {formatDate(event.eventDate)}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {hasModalities && (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100">
-                    <Users className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Lugares</p>
-                    <p className="text-sm font-semibold text-gray-900">{totalSpots} disponibles</p>
-                  </div>
-                </div>
-              )}
+        {/* Right — CTA + content sections */}
+        <div className="space-y-6">
+          {/* CTA card */}
+          <div className="space-y-4 rounded-2xl bg-white p-6 shadow-md">
+            {minPrice !== undefined && (
+              <div className="border-b border-gray-100 pb-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Precio desde</p>
+                <p className="font-barlow-condensed mt-1 text-5xl font-extrabold text-gray-900">
+                  {formatPrice(minPrice)}
+                </p>
+                {hasModalities && (
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {modalities.length} modalidad{modalities.length !== 1 ? 'es' : ''}
+                  </p>
+                )}
+              </div>
+            )}
+            {event.organizer?.email && (
+              <div className="border-b border-gray-100 pb-4 text-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Organizador</p>
+                <p className="mt-1 text-gray-700">{event.organizer.email}</p>
+              </div>
+            )}
+            <RegistrationCTA
+              event={event}
+              modalities={modalities}
+              myRegistration={myRegistration}
+              isAuthenticated={isAuthenticated}
+              eventId={eventId}
+            />
+          </div>
+
+          {/* Places available */}
+          {hasModalities && (
+            <div className="flex items-center gap-3 rounded-2xl bg-white p-5 shadow-sm">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100">
+                <Users className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Lugares disponibles</p>
+                <p className="text-sm font-semibold text-gray-900">{totalSpots} lugares</p>
+              </div>
             </div>
           )}
 
@@ -368,59 +409,68 @@ export default function EventDetailPage() {
           )}
 
           {/* Gallery */}
-          {event.galleryImages && event.galleryImages.length > 0 && (
+          {galleryImages.length > 0 && (
             <div>
               <h2 className="font-barlow-condensed mb-3 text-2xl font-bold uppercase tracking-wide text-gray-900">
                 Galería
               </h2>
               <div className="grid grid-cols-3 gap-2">
-                {event.galleryImages.map((img) => (
-                  <div key={img.id} className="aspect-square overflow-hidden rounded-xl">
+                {galleryImages.map((img, index) => (
+                  <button
+                    key={img.id ?? index}
+                    onClick={() => openLightbox(index)}
+                    className="aspect-square overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fb5d02]"
+                  >
                     <img
                       src={img.imageUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
+                      alt={`Imagen ${index + 1}`}
+                      className="h-full w-full object-cover transition-transform duration-200 hover:scale-105"
                       loading="lazy"
                     />
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
-        </div>
 
-        {/* Sidebar — desktop */}
-        <div className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
-          <div className="space-y-4 rounded-2xl bg-white p-6 shadow-md">
-            {minPrice !== undefined && (
-              <div className="border-b border-gray-100 pb-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Precio desde</p>
-                <p className="font-barlow-condensed mt-1 text-5xl font-extrabold text-gray-900">
-                  {formatPrice(minPrice)}
-                </p>
-                {hasModalities && (
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    {modalities.length} modalidad{modalities.length !== 1 ? 'es' : ''}
+          {/* Lightbox */}
+          <Dialog open={lightboxIndex !== null} onOpenChange={(open) => !open && closeLightbox()}>
+            <DialogContent className="max-w-4xl border-0 bg-black/95 p-0 shadow-none [&>button]:text-white [&>button]:opacity-80 [&>button]:hover:opacity-100">
+              <DialogTitle className="sr-only">Galería de imágenes</DialogTitle>
+              <div className="relative flex items-center justify-center" style={{ minHeight: '60vh' }}>
+                {lightboxIndex !== null && galleryImages[lightboxIndex]?.imageUrl && (
+                  <img
+                    src={galleryImages[lightboxIndex].imageUrl}
+                    alt={`Imagen ${lightboxIndex + 1} de ${galleryImages.length}`}
+                    className="max-h-[80vh] max-w-full object-contain"
+                  />
+                )}
+                {galleryImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImage}
+                      className="absolute left-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/25"
+                      aria-label="Imagen anterior"
+                    >
+                      <ChevronLeft className="h-6 w-6" />
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/25"
+                      aria-label="Imagen siguiente"
+                    >
+                      <ChevronRight className="h-6 w-6" />
+                    </button>
+                  </>
+                )}
+                {lightboxIndex !== null && (
+                  <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-white/50">
+                    {lightboxIndex + 1} / {galleryImages.length}
                   </p>
                 )}
               </div>
-            )}
-
-            {event.organizer?.email && (
-              <div className="border-b border-gray-100 pb-4 text-sm">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Organizador</p>
-                <p className="mt-1 text-gray-700">{event.organizer.email}</p>
-              </div>
-            )}
-
-            <RegistrationCTA
-              event={event}
-              modalities={modalities}
-              myRegistration={myRegistration}
-              isAuthenticated={isAuthenticated}
-              eventId={eventId}
-            />
-          </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
