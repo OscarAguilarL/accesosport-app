@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('accessToken')
     setUser(null)
     setRoles([])
+    setNeedsOnboarding(false)
   }
 
   const refreshUser = async () => {
@@ -98,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         roles,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user || needsOnboarding,
         needsOnboarding,
         login,
         signup,

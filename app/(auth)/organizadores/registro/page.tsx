@@ -4,32 +4,30 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { getLastAuthPath } from '@/components/auth-route-tracker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { FieldGroup, Field, FieldLabel, FieldError } from '@/components/ui/field'
+import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError } from '@/lib/api'
 
-export default function SignupPage() {
+export default function OrganizerSignupPage() {
   const router = useRouter()
-  const { signup, isAuthenticated, isLoading: isAuthLoading, roles } = useAuth()
+  const { signup, isAuthenticated, isLoading: isAuthLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    if (!isAuthLoading && isAuthenticated) {
-      const lastPath = getLastAuthPath()
-      router.replace(lastPath ?? (roles.includes('ROLE_ORGANIZER') ? '/dashboard' : '/eventos'))
-    }
-  }, [isAuthenticated, isAuthLoading, roles, router])
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     passwordConfirmation: '',
   })
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      router.replace('/onboarding')
+    }
+  }, [isAuthenticated, isAuthLoading, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,7 +42,7 @@ export default function SignupPage() {
 
     try {
       await signup(formData)
-      router.push('/eventos')
+      router.push('/onboarding')
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail || err.message)
@@ -75,9 +73,9 @@ export default function SignupPage() {
               />
             </svg>
           </div>
-          <CardTitle className="text-2xl">Crear cuenta</CardTitle>
+          <CardTitle className="text-2xl">Crear cuenta de organizador</CardTitle>
           <CardDescription>
-            Crea tu cuenta gratis y empieza a correr
+            Regístrate para publicar y gestionar eventos deportivos
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -88,7 +86,7 @@ export default function SignupPage() {
                   {error}
                 </div>
               )}
-              
+
               <Field>
                 <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
                 <Input
@@ -101,7 +99,7 @@ export default function SignupPage() {
                   disabled={isLoading}
                 />
               </Field>
-              
+
               <Field>
                 <FieldLabel htmlFor="password">Contraseña</FieldLabel>
                 <PasswordInput
@@ -127,7 +125,7 @@ export default function SignupPage() {
                   minLength={8}
                 />
               </Field>
-              
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
@@ -140,17 +138,16 @@ export default function SignupPage() {
               </Button>
             </FieldGroup>
           </form>
-          
+
           <div className="mt-6 text-center text-sm text-muted-foreground">
             ¿Ya tienes una cuenta?{' '}
-            <Link href="/login" className="font-medium text-primary hover:underline">
+            <Link href="/organizadores/login" className="font-medium text-primary hover:underline">
               Inicia sesión
             </Link>
           </div>
           <div className="mt-3 text-center text-xs text-muted-foreground">
-            ¿Eres organizador?{' '}
-            <Link href="/organizadores/registro" className="font-medium text-primary hover:underline">
-              Regístrate aquí
+            <Link href="/" className="hover:underline">
+              ← Volver al portal
             </Link>
           </div>
         </CardContent>

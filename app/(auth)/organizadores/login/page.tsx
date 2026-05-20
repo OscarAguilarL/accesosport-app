@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { getLastAuthPath } from '@/components/auth-route-tracker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
@@ -13,22 +12,20 @@ import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError } from '@/lib/api'
 
-function LoginForm() {
+function OrganizerLoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
-  const { login, isAuthenticated, isLoading: isAuthLoading, roles } = useAuth()
+  const { login, isAuthenticated, isLoading: isAuthLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [formData, setFormData] = useState({ email: '', password: '' })
 
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
-      const destination = redirectTo || getLastAuthPath() || (roles.includes('ROLE_ORGANIZER') ? '/dashboard' : '/eventos')
-      router.replace(destination)
+      router.replace(redirectTo || '/dashboard')
     }
-  }, [isAuthenticated, isAuthLoading, roles, router, redirectTo])
-
-  const [error, setError] = useState<string | null>(null)
-  const [formData, setFormData] = useState({ email: '', password: '' })
+  }, [isAuthenticated, isAuthLoading, router, redirectTo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,9 +33,8 @@ function LoginForm() {
     setError(null)
 
     try {
-      const roles = await login(formData)
-      const destination = redirectTo || (roles.includes('ROLE_ORGANIZER') ? '/dashboard' : '/eventos')
-      router.push(destination)
+      await login(formData)
+      router.push(redirectTo || '/dashboard')
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail || err.message)
@@ -93,7 +89,7 @@ function LoginForm() {
   )
 }
 
-export default function LoginPage() {
+export default function OrganizerLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -103,25 +99,24 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <CardTitle className="text-2xl">Acceso Sport</CardTitle>
+          <CardTitle className="text-2xl">Panel de organizadores</CardTitle>
           <CardDescription>
-            Inicia sesión para explorar y registrarte en carreras atléticas
+            Accede para gestionar y publicar tus eventos deportivos
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Suspense fallback={<Spinner className="mx-auto" />}>
-            <LoginForm />
+            <OrganizerLoginForm />
           </Suspense>
           <div className="mt-6 text-center text-sm text-muted-foreground">
             ¿No tienes una cuenta?{' '}
-            <Link href="/signup" className="font-medium text-primary hover:underline">
-              Regístrate
+            <Link href="/organizadores/registro" className="font-medium text-primary hover:underline">
+              Regístrate como organizador
             </Link>
           </div>
           <div className="mt-3 text-center text-xs text-muted-foreground">
-            ¿Eres organizador?{' '}
-            <Link href="/organizadores/login" className="font-medium text-primary hover:underline">
-              Accede aquí
+            <Link href="/" className="hover:underline">
+              ← Volver al portal
             </Link>
           </div>
         </CardContent>

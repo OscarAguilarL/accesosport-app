@@ -16,13 +16,12 @@ const navLinks = [
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { isAuthenticated, isLoading, user, roles, logout } = useAuth()
+  const { isAuthenticated, isLoading, user, roles, logout, needsOnboarding } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const avatarRef = useRef<HTMLDivElement>(null)
 
   const isOrganizer = roles.includes('ROLE_ORGANIZER') || roles.includes('ROLE_ADMIN')
-
   const initials = user?.firstName
     ? user.firstName[0].toUpperCase()
     : user?.email?.[0]?.toUpperCase() ?? 'U'
@@ -106,10 +105,15 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                     {/* User info */}
                     <div className="border-b border-gray-100 px-4 py-3">
                       <p className="truncate text-sm font-semibold text-gray-900">
-                        {user?.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : user?.email}
+                        {user?.firstName
+                          ? `${user.firstName} ${user.lastName ?? ''}`.trim()
+                          : user?.email ?? 'Mi cuenta'}
                       </p>
                       {user?.firstName && (
                         <p className="truncate text-xs text-gray-500">{user.email}</p>
+                      )}
+                      {needsOnboarding && !user && (
+                        <p className="text-xs text-amber-600">Perfil incompleto</p>
                       )}
                     </div>
 
@@ -226,6 +230,11 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             <div className="border-t border-gray-100 p-3">
               {isAuthenticated ? (
                 <div className="space-y-1">
+                  {needsOnboarding && !user && (
+                    <div className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                      Completa tu perfil para inscribirte en eventos
+                    </div>
+                  )}
                   {user && (
                     <div className="mb-2 flex items-center gap-3 rounded-lg px-3 py-2">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fb5d02] text-sm font-bold text-black">
@@ -233,7 +242,9 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-gray-900">
-                          {user.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : user.email}
+                          {user.firstName
+                            ? `${user.firstName} ${user.lastName ?? ''}`.trim()
+                            : user.email}
                         </p>
                         {user.firstName && (
                           <p className="truncate text-xs text-gray-500">{user.email}</p>
@@ -303,6 +314,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
               {!isAuthenticated && (
                 <Link href="/signup" className="hover:text-gray-900">Registrarse</Link>
               )}
+              <Link href="/organizadores/login" className="hover:text-gray-900">Para organizadores</Link>
             </div>
             <p className="text-xs text-gray-400">© 2026 AccesoSport. Todos los derechos reservados.</p>
           </div>
