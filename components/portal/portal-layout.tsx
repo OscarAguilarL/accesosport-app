@@ -7,11 +7,13 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { LogOut, LogIn, Menu, X, Calendar, Ticket, User, Home, LayoutDashboard } from 'lucide-react'
+import { LogOut, LogIn, Menu, X, Calendar, Ticket, User, Home, LayoutDashboard, Info, Mail } from 'lucide-react'
 
 const navLinks = [
   { href: '/', label: 'Inicio', icon: Home, exact: true },
   { href: '/eventos', label: 'Eventos', icon: Calendar },
+  { href: '/acerca-de', label: 'Acerca de', icon: Info },
+  { href: '/contacto', label: 'Contacto', icon: Mail },
 ]
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -319,7 +321,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 className="h-10 w-auto"
               />
             </Link>
-            <div className="flex items-center gap-6 text-sm text-gray-500">
+            <div className="flex flex-wrap items-center gap-6 text-sm text-gray-500">
               <Link href="/eventos" className="hover:text-gray-900">Eventos</Link>
               {isAuthenticated && (
                 <Link href="/mis-inscripciones" className="hover:text-gray-900">Mis inscripciones</Link>
@@ -330,7 +332,8 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
               {!isAuthenticated && (
                 <Link href="/signup" className="hover:text-gray-900">Registrarse</Link>
               )}
-              <Link href="/organizadores/login" className="hover:text-gray-900">Para organizadores</Link>
+              <Link href="/acerca-de" className="hover:text-gray-900">Acerca de</Link>
+              <Link href="/contacto" className="hover:text-gray-900">Contacto</Link>
             </div>
             <p className="text-xs text-gray-400">© 2026 AccesoSport. Todos los derechos reservados.</p>
           </div>
