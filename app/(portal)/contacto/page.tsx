@@ -5,7 +5,7 @@ import { Mail, CheckCircle2, Trophy, Users, Zap, Send, Loader2 } from 'lucide-re
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/proxy'
 
 export default function ContactoPage() {
   const [name, setName] = useState('')
