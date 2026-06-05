@@ -15,15 +15,19 @@ import { ApiError } from '@/lib/api'
 
 export default function SignupPage() {
   const router = useRouter()
-  const { signup, isAuthenticated, isLoading: isAuthLoading, roles } = useAuth()
+  const { signup, isAuthenticated, isLoading: isAuthLoading, roles, needsOnboarding } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
+      if (needsOnboarding) {
+        router.replace('/onboarding-participante')
+        return
+      }
       const lastPath = getLastAuthPath()
       router.replace(lastPath ?? (roles.includes('ROLE_ORGANIZER') ? '/dashboard' : '/eventos'))
     }
-  }, [isAuthenticated, isAuthLoading, roles, router])
+  }, [isAuthenticated, isAuthLoading, roles, router, needsOnboarding])
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: '',
@@ -44,7 +48,7 @@ export default function SignupPage() {
 
     try {
       await signup(formData)
-      router.push('/eventos')
+      // La navegación la maneja el useEffect al detectar needsOnboarding=true
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail || err.message)

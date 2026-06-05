@@ -60,6 +60,10 @@ export default function OnboardingPage() {
 
   const handlePersonalDataSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!personalData.gender) {
+      setError('Selecciona tu género para continuar.')
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {
@@ -242,7 +246,7 @@ export default function OnboardingPage() {
                   />
                 </Field>
 
-                <Button type="submit" className="w-full" disabled={isLoading || !personalData.gender}>
+                <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? <><Spinner className="mr-2" /> Guardando...</> : 'Continuar'}
                 </Button>
               </FieldGroup>

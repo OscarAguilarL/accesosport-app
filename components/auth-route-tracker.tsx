@@ -4,7 +4,16 @@ import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 
-const AUTH_ROUTES = ['/login', '/signup', '/onboarding']
+const AUTH_ROUTES = [
+  '/login',
+  '/signup',
+  '/onboarding',
+  '/onboarding-participante',
+  '/forgot-password',
+  '/reset-password',
+  '/organizadores/registro',
+  '/organizadores/login',
+]
 const LAST_AUTH_PATH_KEY = 'lastAuthPath'
 
 export function AuthRouteTracker() {

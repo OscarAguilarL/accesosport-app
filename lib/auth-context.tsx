@@ -1,8 +1,20 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { auth as authApi, user as userApi, ApiError } from './api'
 import type { UserInformationDto, LoginRequest, RegisterRequest } from './types'
+
+const ONBOARDING_EXEMPT_ROUTES = [
+  '/login',
+  '/signup',
+  '/onboarding',
+  '/onboarding-participante',
+  '/forgot-password',
+  '/reset-password',
+  '/organizadores/registro',
+  '/organizadores/login',
+]
 
 interface AuthContextType {
   user: UserInformationDto | null
@@ -30,6 +42,8 @@ function getRolesFromToken(token: string): string[] {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<UserInformationDto | null>(null)
   const [roles, setRoles] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -65,6 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchUser().finally(() => setIsLoading(false))
   }, [fetchUser])
+
+  useEffect(() => {
+    if (isLoading || !needsOnboarding) return
+    const isExempt = ONBOARDING_EXEMPT_ROUTES.some((route) => pathname.startsWith(route))
+    if (isExempt) return
+    const target = roles.includes('ROLE_ORGANIZER') ? '/onboarding' : '/onboarding-participante'
+    router.replace(target)
+  }, [isLoading, needsOnboarding, pathname, roles, router])
 
   const login = async (data: LoginRequest): Promise<string[]> => {
     const response = await authApi.login(data)

@@ -3,8 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { profile as profileApi, ApiError } from '@/lib/api'
-import type { CreateParticipantProfileRequest, ShirtSize, BloodType, Gender } from '@/lib/types'
+import { profile as profileApi, user as userApi, ApiError } from '@/lib/api'
+import type {
+  CreateParticipantProfileRequest,
+  SavePersonalDataRequest,
+  ShirtSize,
+  BloodType,
+  Gender,
+} from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
-import { Save, UserCircle } from 'lucide-react'
+import { Save, UserCircle, User } from 'lucide-react'
 
 const SHIRT_SIZE_OPTIONS: { value: ShirtSize; label: string }[] = [
   { value: 'SIZE_XS', label: 'XS' },
@@ -40,7 +46,16 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'OTRO', label: 'Otro' },
 ]
 
-const EMPTY_FORM: CreateParticipantProfileRequest = {
+const EMPTY_PERSONAL_DATA: SavePersonalDataRequest = {
+  firstName: '',
+  lastName: '',
+  secondLastName: '',
+  birthDate: '',
+  gender: '',
+  phoneNumber: '',
+}
+
+const EMPTY_PROFILE: CreateParticipantProfileRequest = {
   shirtSize: 'SIZE_M',
   bloodType: 'O_POSITIVE',
   emergencyContactName: '',
@@ -52,13 +67,21 @@ const EMPTY_FORM: CreateParticipantProfileRequest = {
 
 export default function PerfilPage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth()
-  const [formData, setFormData] = useState<CreateParticipantProfileRequest>(EMPTY_FORM)
+  const { isAuthenticated, isLoading: isAuthLoading, user, refreshUser } = useAuth()
+
+  // PersonalData section
+  const [personalData, setPersonalData] = useState<SavePersonalDataRequest>(EMPTY_PERSONAL_DATA)
+  const [isSavingPersonalData, setIsSavingPersonalData] = useState(false)
+  const [personalDataSuccess, setPersonalDataSuccess] = useState<string | null>(null)
+  const [personalDataError, setPersonalDataError] = useState<string | null>(null)
+
+  // Participant profile section
+  const [profileForm, setProfileForm] = useState<CreateParticipantProfileRequest>(EMPTY_PROFILE)
   const [profileExists, setProfileExists] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null)
+  const [profileError, setProfileError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
@@ -66,6 +89,21 @@ export default function PerfilPage() {
     }
   }, [isAuthenticated, isAuthLoading, router])
 
+  // Pre-populate PersonalData from auth context user
+  useEffect(() => {
+    if (user) {
+      setPersonalData({
+        firstName: user.firstName ?? '',
+        lastName: user.lastName ?? '',
+        secondLastName: user.secondLastName ?? '',
+        birthDate: user.birthDate ?? '',
+        gender: user.gender ?? '',
+        phoneNumber: user.phoneNumber ?? '',
+      })
+    }
+  }, [user])
+
+  // Load participant profile
   useEffect(() => {
     if (!isAuthenticated) return
     profileApi
@@ -73,7 +111,7 @@ export default function PerfilPage() {
       .then((data) => {
         if (data.shirtSize && data.bloodType) {
           setProfileExists(true)
-          setFormData({
+          setProfileForm({
             shirtSize: data.shirtSize,
             bloodType: data.bloodType,
             emergencyContactName: data.emergencyContactName || '',
@@ -85,44 +123,62 @@ export default function PerfilPage() {
         }
       })
       .catch((err) => {
-        // 404 significa que el perfil no existe aún — no es un error
         if (!(err instanceof ApiError && err.status === 404)) {
-          setErrorMessage(
-            err instanceof ApiError
-              ? (err.detail || err.message)
-              : 'Error al cargar el perfil.'
+          setProfileError(
+            err instanceof ApiError ? (err.detail || err.message) : 'Error al cargar el perfil.'
           )
         }
       })
-      .finally(() => setIsLoading(false))
-  }, [])
+      .finally(() => setIsLoadingProfile(false))
+  }, [isAuthenticated])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePersonalDataSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSaving(true)
-    setSuccessMessage(null)
-    setErrorMessage(null)
+    if (!personalData.gender) {
+      setPersonalDataError('Selecciona tu género para continuar.')
+      return
+    }
+    setIsSavingPersonalData(true)
+    setPersonalDataSuccess(null)
+    setPersonalDataError(null)
     try {
-      const payload = { ...formData, medicalConditions: formData.medicalConditions || undefined }
-      if (profileExists) {
-        await profileApi.updateParticipant(payload)
-      } else {
-        await profileApi.createParticipant(payload)
-        setProfileExists(true)
-      }
-      setSuccessMessage('Perfil guardado correctamente.')
+      await userApi.savePersonalData(personalData)
+      await refreshUser()
+      setPersonalDataSuccess('Datos personales guardados correctamente.')
     } catch (err) {
-      setErrorMessage(
-        err instanceof ApiError
-          ? (err.detail || err.message)
-          : 'Error al guardar el perfil.'
+      setPersonalDataError(
+        err instanceof ApiError ? (err.detail || err.message) : 'Error al guardar los datos.'
       )
     } finally {
-      setIsSaving(false)
+      setIsSavingPersonalData(false)
     }
   }
 
-  if (isLoading) {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSavingProfile(true)
+    setProfileSuccess(null)
+    setProfileError(null)
+    try {
+      const payload = { ...profileForm, medicalConditions: profileForm.medicalConditions || undefined }
+      if (profileExists) {
+        await profileApi.updateParticipant(payload)
+      } else {
+        const { token } = await profileApi.createParticipant(payload)
+        localStorage.setItem('accessToken', token)
+        setProfileExists(true)
+      }
+      setProfileSuccess('Perfil de corredor guardado correctamente.')
+    } catch (err) {
+      setProfileError(
+        err instanceof ApiError ? (err.detail || err.message) : 'Error al guardar el perfil.'
+      )
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
+  if (isLoadingProfile) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Spinner className="h-8 w-8" />
@@ -131,28 +187,146 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl space-y-6">
+
+      {/* Datos personales */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Datos personales
+          </CardTitle>
+          <CardDescription>Tu nombre, fecha de nacimiento y contacto</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handlePersonalDataSubmit}>
+            <FieldGroup>
+              {personalDataSuccess && (
+                <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+                  {personalDataSuccess}
+                </div>
+              )}
+              {personalDataError && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  {personalDataError}
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="firstName">Nombre *</FieldLabel>
+                  <Input
+                    id="firstName"
+                    value={personalData.firstName}
+                    onChange={(e) => setPersonalData({ ...personalData, firstName: e.target.value })}
+                    required
+                    disabled={isSavingPersonalData}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="lastName">Apellido paterno *</FieldLabel>
+                  <Input
+                    id="lastName"
+                    value={personalData.lastName}
+                    onChange={(e) => setPersonalData({ ...personalData, lastName: e.target.value })}
+                    required
+                    disabled={isSavingPersonalData}
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="secondLastName">Apellido materno</FieldLabel>
+                <Input
+                  id="secondLastName"
+                  value={personalData.secondLastName}
+                  onChange={(e) => setPersonalData({ ...personalData, secondLastName: e.target.value })}
+                  disabled={isSavingPersonalData}
+                />
+              </Field>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="birthDate">Fecha de nacimiento *</FieldLabel>
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    value={personalData.birthDate}
+                    onChange={(e) => setPersonalData({ ...personalData, birthDate: e.target.value })}
+                    required
+                    disabled={isSavingPersonalData}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="pdGender">Género *</FieldLabel>
+                  <Select
+                    value={personalData.gender}
+                    onValueChange={(value) => setPersonalData({ ...personalData, gender: value })}
+                    disabled={isSavingPersonalData}
+                  >
+                    <SelectTrigger id="pdGender">
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GENDER_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="phoneNumber">Teléfono *</FieldLabel>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  placeholder="10 a 15 dígitos"
+                  value={personalData.phoneNumber}
+                  onChange={(e) => setPersonalData({ ...personalData, phoneNumber: e.target.value })}
+                  required
+                  minLength={10}
+                  maxLength={15}
+                  disabled={isSavingPersonalData}
+                />
+              </Field>
+
+              <Button type="submit" disabled={isSavingPersonalData}>
+                {isSavingPersonalData ? (
+                  <><Spinner className="mr-2" /> Guardando...</>
+                ) : (
+                  <><Save className="mr-2 h-4 w-4" /> Guardar datos personales</>
+                )}
+              </Button>
+            </FieldGroup>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Perfil de corredor */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserCircle className="h-5 w-5" />
-            Perfil de participante
+            Perfil de corredor
           </CardTitle>
           <CardDescription>
             Esta información es necesaria para inscribirte a una carrera
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleProfileSubmit}>
             <FieldGroup>
-              {successMessage && (
+              {profileSuccess && (
                 <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
-                  {successMessage}
+                  {profileSuccess}
                 </div>
               )}
-              {errorMessage && (
+              {profileError && (
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  {errorMessage}
+                  {profileError}
                 </div>
               )}
 
@@ -160,11 +334,12 @@ export default function PerfilPage() {
                 <Field>
                   <FieldLabel htmlFor="shirtSize">Talla de playera *</FieldLabel>
                   <Select
-                    value={formData.shirtSize}
+                    value={profileForm.shirtSize}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, shirtSize: value as ShirtSize })
+                      setProfileForm({ ...profileForm, shirtSize: value as ShirtSize })
                     }
                     required
+                    disabled={isSavingProfile}
                   >
                     <SelectTrigger id="shirtSize">
                       <SelectValue placeholder="Selecciona tu talla" />
@@ -182,11 +357,12 @@ export default function PerfilPage() {
                 <Field>
                   <FieldLabel htmlFor="bloodType">Tipo de sangre *</FieldLabel>
                   <Select
-                    value={formData.bloodType}
+                    value={profileForm.bloodType}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, bloodType: value as BloodType })
+                      setProfileForm({ ...profileForm, bloodType: value as BloodType })
                     }
                     required
+                    disabled={isSavingProfile}
                   >
                     <SelectTrigger id="bloodType">
                       <SelectValue placeholder="Selecciona tu tipo" />
@@ -202,53 +378,18 @@ export default function PerfilPage() {
                 </Field>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="phone">Teléfono *</FieldLabel>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="10 dígitos"
-                    required
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="gender">Género *</FieldLabel>
-                  <Select
-                    value={formData.gender}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, gender: value as Gender })
-                    }
-                    required
-                  >
-                    <SelectTrigger id="gender">
-                      <SelectValue placeholder="Selecciona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GENDER_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
               <Field>
                 <FieldLabel htmlFor="medicalConditions">Condiciones médicas</FieldLabel>
                 <Textarea
                   id="medicalConditions"
-                  value={formData.medicalConditions}
+                  value={profileForm.medicalConditions}
                   onChange={(e) =>
-                    setFormData({ ...formData, medicalConditions: e.target.value })
+                    setProfileForm({ ...profileForm, medicalConditions: e.target.value })
                   }
                   placeholder="Alergias, enfermedades, medicamentos actuales... (opcional)"
                   rows={3}
                   maxLength={500}
+                  disabled={isSavingProfile}
                 />
               </Field>
 
@@ -258,12 +399,13 @@ export default function PerfilPage() {
                 </FieldLabel>
                 <Input
                   id="emergencyContactName"
-                  value={formData.emergencyContactName}
+                  value={profileForm.emergencyContactName}
                   onChange={(e) =>
-                    setFormData({ ...formData, emergencyContactName: e.target.value })
+                    setProfileForm({ ...profileForm, emergencyContactName: e.target.value })
                   }
                   placeholder="Nombre completo"
                   required
+                  disabled={isSavingProfile}
                 />
               </Field>
 
@@ -274,32 +416,28 @@ export default function PerfilPage() {
                 <Input
                   id="emergencyContactPhone"
                   type="tel"
-                  value={formData.emergencyContactPhone}
+                  value={profileForm.emergencyContactPhone}
                   onChange={(e) =>
-                    setFormData({ ...formData, emergencyContactPhone: e.target.value })
+                    setProfileForm({ ...profileForm, emergencyContactPhone: e.target.value })
                   }
                   placeholder="10 dígitos"
                   required
+                  disabled={isSavingProfile}
                 />
               </Field>
 
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <Spinner className="mr-2" />
-                    Guardando...
-                  </>
+              <Button type="submit" disabled={isSavingProfile}>
+                {isSavingProfile ? (
+                  <><Spinner className="mr-2" /> Guardando...</>
                 ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Guardar perfil
-                  </>
+                  <><Save className="mr-2 h-4 w-4" /> Guardar perfil de corredor</>
                 )}
               </Button>
             </FieldGroup>
           </form>
         </CardContent>
       </Card>
+
     </div>
   )
 }
