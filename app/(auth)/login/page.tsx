@@ -17,6 +17,7 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
+  const mensaje = searchParams.get('mensaje')
   const { login, isAuthenticated, isLoading: isAuthLoading, roles } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -53,6 +54,11 @@ function LoginForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        {mensaje === 'contrasena-actualizada' && (
+          <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+            Contraseña actualizada correctamente. Ya puedes iniciar sesión.
+          </div>
+        )}
         {error && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -88,6 +94,11 @@ function LoginForm() {
             'Iniciar sesión'
           )}
         </Button>
+        <div className="text-center text-sm">
+          <Link href="/auth/forgot-password" className="text-muted-foreground hover:text-primary hover:underline">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
       </FieldGroup>
     </form>
   )
