@@ -32,6 +32,14 @@ export async function fetchApi<T>(
     headers,
   })
 
+  const isAuthEndpoint = endpoint.startsWith('/auth/')
+  if (response.status === 401 && !isAuthEndpoint && typeof window !== 'undefined') {
+    localStorage.removeItem('accessToken')
+    const currentPath = window.location.pathname
+    window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+    throw new ApiError('Session expired', 401)
+  }
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new ApiError(

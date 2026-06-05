@@ -49,6 +49,11 @@ function OrganizerLoginForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        {redirectTo && (
+          <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">
+            Tu sesión expiró. Inicia sesión nuevamente para continuar.
+          </div>
+        )}
         {error && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             {error}
