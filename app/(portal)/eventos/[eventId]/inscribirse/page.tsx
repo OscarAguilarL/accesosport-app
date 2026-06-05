@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
-import { events as eventsApi, profile as profileApi, registrations as registrationsApi, modalities as modalitiesApi, categories as categoriesApi, ApiError } from '@/lib/api'
-import type { EventResponse, ParticipantProfileResponse, CreateParticipantProfileRequest, ShirtSize, BloodType, Gender, EventModalityResponse, EventCategoryResponse } from '@/lib/types'
-import { useAuth } from '@/lib/auth-context'
+import { useParams } from 'next/navigation'
+import type { ShirtSize, BloodType, Gender } from '@/lib/types'
+import { useRegistrationFlow } from '@/lib/hooks/useRegistrationFlow'
+import { formatPrice, formatDateLong } from '@/lib/domain/formatting'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -14,8 +13,6 @@ import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { CheckCircle, ChevronLeft, ScrollText, X } from 'lucide-react'
-
-type Step = 'profile' | 'modality' | 'category' | 'confirm' | 'success'
 
 const SHIRT_SIZE_OPTIONS: { value: ShirtSize; label: string }[] = [
   { value: 'SIZE_XS', label: 'XS' },
@@ -43,238 +40,56 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'OTRO', label: 'Otro' },
 ]
 
-function formatDate(dateString?: string): string {
-  if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString('es-MX', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
-
-function formatPrice(price?: number): string {
-  if (price === undefined || price === null) return '-'
-  if (price === 0) return 'Gratis'
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(price)
-}
-
-function isProfileComplete(p: ParticipantProfileResponse): boolean {
-  return !!(p.shirtSize && p.bloodType && p.emergencyContactName && p.emergencyContactPhone)
-}
-
 export default function InscribirsePage() {
   const params = useParams()
-  const router = useRouter()
   const eventId = params.eventId as string
-  const { user, isAuthenticated, isLoading: isAuthLoading, refreshUser } = useAuth()
+  const flow = useRegistrationFlow(eventId)
 
-  const [step, setStep] = useState<Step>('profile')
-  const [event, setEvent] = useState<EventResponse | null>(null)
-  const [eventModalities, setEventModalities] = useState<EventModalityResponse[]>([])
-  const [eventCategories, setEventCategories] = useState<EventCategoryResponse[]>([])
-  const [selectedModality, setSelectedModality] = useState<EventModalityResponse | null>(null)
-  const [selectedCategory, setSelectedCategory] = useState<EventCategoryResponse | null>(null)
-  const [isPageLoading, setIsPageLoading] = useState(true)
-  const [ticketCode, setTicketCode] = useState<string>('')
-
-  const [profileFormData, setProfileFormData] = useState<CreateParticipantProfileRequest>({
-    shirtSize: 'SIZE_M',
-    bloodType: 'O_POSITIVE',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    medicalConditions: '',
-    phone: '',
-    gender: 'FEMENIL',
-  })
-  const [profileExists, setProfileExists] = useState(false)
-  const [showProfileForm, setShowProfileForm] = useState(false)
-  const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [profileError, setProfileError] = useState<string | null>(null)
-
-  const [wantsShirt, setWantsShirt] = useState<boolean | null>(null)
-  const [isRegistering, setIsRegistering] = useState(false)
-  const [registerError, setRegisterError] = useState<string | null>(null)
-
-  const [waiverRead, setWaiverRead] = useState(false)
-  const [waiverAccepted, setWaiverAccepted] = useState(false)
-  const [showWaiverModal, setShowWaiverModal] = useState(false)
-  const [waiverAcceptedAtTime, setWaiverAcceptedAtTime] = useState<Date | null>(null)
-
-  useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent(`/eventos/${eventId}/inscribirse`)}`)
-    }
-  }, [isAuthenticated, isAuthLoading, router, eventId])
-
-  useEffect(() => {
-    if (!isAuthenticated) return
-
-    Promise.all([
-      eventsApi.get(eventId),
-      modalitiesApi.list(eventId).catch(() => [] as EventModalityResponse[]),
-      categoriesApi.list(eventId).catch(() => [] as EventCategoryResponse[]),
-      profileApi.getParticipant().catch((err) => {
-        if (err instanceof ApiError && err.status === 404) return null
-        throw err
-      }),
-    ])
-      .then(([eventData, modalitiesData, categoriesData, profileData]) => {
-        setEvent(eventData)
-        setEventModalities(modalitiesData)
-        setEventCategories(categoriesData)
-        if (!profileData || !isProfileComplete(profileData)) {
-          if (profileData?.shirtSize) {
-            setProfileExists(true)
-            setProfileFormData({
-              shirtSize: profileData.shirtSize,
-              bloodType: profileData.bloodType ?? 'O_POSITIVE',
-              emergencyContactName: profileData.emergencyContactName ?? '',
-              emergencyContactPhone: profileData.emergencyContactPhone ?? '',
-              medicalConditions: profileData.medicalConditions ?? '',
-              phone: profileData.phone ?? '',
-              gender: profileData.gender ?? 'FEMENIL',
-            })
-          }
-          setShowProfileForm(true)
-        } else if (modalitiesData.length > 0) {
-          setStep('modality')
-        } else if (categoriesData.length > 0) {
-          setStep('category')
-        } else {
-          setStep('confirm')
-        }
-      })
-      .catch((err) => {
-        setProfileError(
-          err instanceof ApiError ? (err.detail || err.message) : 'Error al cargar los datos.'
-        )
-      })
-      .finally(() => setIsPageLoading(false))
-  }, [isAuthenticated, eventId])
-
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSavingProfile(true)
-    setProfileError(null)
-    try {
-      const payload = { ...profileFormData, medicalConditions: profileFormData.medicalConditions || undefined }
-      if (profileExists) {
-        await profileApi.updateParticipant(payload)
-      } else {
-        const result = await profileApi.createParticipant(payload)
-        localStorage.setItem('accessToken', result.token)
-        await refreshUser()
-      }
-      setShowProfileForm(false)
-      if (eventModalities.length > 0) {
-        setStep('modality')
-      } else if (eventCategories.length > 0) {
-        setStep('category')
-      } else {
-        setStep('confirm')
-      }
-    } catch (err) {
-      setProfileError(
-        err instanceof ApiError ? (err.detail || err.message) : 'Error al guardar el perfil.'
-      )
-    } finally {
-      setIsSavingProfile(false)
-    }
-  }
-
-  const handleSelectModality = (modality: EventModalityResponse) => {
-    setSelectedModality(modality)
-    setSelectedCategory(null)
-    setWantsShirt(modality.priceWithoutShirt != null ? null : true)
-    const relevantCategories = eventCategories.filter(
-      c => c.modalityId == null || c.modalityId === modality.id
-    )
-    if (relevantCategories.length > 0) {
-      setStep('category')
-    } else {
-      setStep('confirm')
-    }
-  }
-
-  const handleRegister = async () => {
-    setIsRegistering(true)
-    setRegisterError(null)
-    try {
-      const reg = await registrationsApi.register(eventId, selectedModality?.id, selectedCategory?.id, true, wantsShirt ?? true)
-      setTicketCode(reg.ticketCode)
-      setStep('success')
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 409) {
-          setRegisterError('Ya estás inscrito en este evento.')
-        } else if (err.status === 422) {
-          setRegisterError(
-            err.detail || 'No es posible completar la inscripción. Verifica que el evento tenga cupo y las inscripciones estén abiertas.'
-          )
-        } else {
-          setRegisterError(err.detail || err.message)
-        }
-      } else {
-        setRegisterError('Error al procesar la inscripción. Intenta de nuevo.')
-      }
-    } finally {
-      setIsRegistering(false)
-    }
-  }
-
-  if (isAuthLoading || isPageLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-8 w-8" />
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) return null
-
-  const hasModalities = eventModalities.length > 0
-  const relevantCategories = selectedModality
-    ? eventCategories.filter(c => c.modalityId == null || c.modalityId === selectedModality.id)
-    : eventCategories
-  const hasCategories = relevantCategories.length > 0
-
-  const allSteps: { key: Step; label: string; number: number }[] = (() => {
-    const steps: { key: Step; label: string }[] = [{ key: 'profile', label: 'Perfil' }]
-    if (hasModalities) steps.push({ key: 'modality', label: 'Modalidad' })
-    if (hasCategories || eventCategories.length > 0) steps.push({ key: 'category', label: 'Categoría' })
-    steps.push({ key: 'confirm', label: 'Confirmar' })
-    steps.push({ key: 'success', label: 'Listo' })
-    return steps.map((s, i) => ({ ...s, number: i + 1 }))
-  })()
-
-  const currentStepIndex = allSteps.findIndex((s) => s.key === step)
-
-  const participantAge = user?.birthDate
-    ? Math.floor((new Date().getTime() - new Date(user.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-    : null
-
-  const suggestedCategory = participantAge != null
-    ? relevantCategories.find(c => {
-        const minOk = c.minAge == null || participantAge >= c.minAge
-        const maxOk = c.maxAge == null || participantAge <= c.maxAge
-        return minOk && maxOk
-      }) ?? null
-    : null
-
-  const effectivePrice = selectedModality
-    ? (wantsShirt === false && selectedModality.priceWithoutShirt != null
-        ? selectedModality.priceWithoutShirt
-        : selectedModality.price)
-    : 0
-
-  const participantFullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Participante'
+  const {
+    event,
+    eventModalities,
+    eventCategories,
+    relevantCategories,
+    selectedModality,
+    selectedCategory,
+    ticketCode,
+    allSteps,
+    currentStepIndex,
+    suggestedCategory,
+    participantAge,
+    effectivePrice,
+    hasModalities,
+    hasCategories,
+    step,
+    setStep,
+    handleSelectModality,
+    setSelectedCategory,
+    wantsShirt,
+    setWantsShirt,
+    waiverRead,
+    waiverAccepted,
+    setWaiverAccepted,
+    waiverAcceptedAtTime,
+    showWaiverModal,
+    setShowWaiverModal,
+    showProfileForm,
+    profileFormData,
+    setProfileFormData,
+    isSavingProfile,
+    profileError,
+    handleSaveProfile,
+    isRegistering,
+    registerError,
+    handleRegister,
+    isPageLoading,
+  } = flow
 
   function renderWaiverContent(template: string, includeAcceptedAt: boolean): React.ReactNode {
+    const participantFullName = flow.participantFullName
     const vars: Record<string, string> = {
       participantFullName,
       eventName: event?.name ?? '',
-      eventDate: event?.eventDate ? formatDate(event.eventDate) : '',
+      eventDate: event?.eventDate ? formatDateLong(event.eventDate) : '',
       ...(includeAcceptedAt && waiverAcceptedAtTime
         ? { waiverAcceptedAt: waiverAcceptedAtTime.toLocaleString('es-MX') }
         : {}),
@@ -310,6 +125,14 @@ export default function InscribirsePage() {
     }
 
     return parts
+  }
+
+  if (isPageLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Spinner className="h-8 w-8" />
+      </div>
+    )
   }
 
   return (
@@ -611,13 +434,7 @@ export default function InscribirsePage() {
             <div className="border-t px-6 py-4">
               <Button
                 className="w-full"
-                onClick={() => {
-                  const now = new Date()
-                  setWaiverRead(true)
-                  setWaiverAccepted(true)
-                  setWaiverAcceptedAtTime(now)
-                  setShowWaiverModal(false)
-                }}
+                onClick={flow.handleAcceptWaiver}
               >
                 He leído y acepto
               </Button>
@@ -636,7 +453,7 @@ export default function InscribirsePage() {
           <CardContent className="space-y-4">
             <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
               <p className="font-semibold text-lg">{event.name}</p>
-              <p className="text-sm text-muted-foreground">{formatDate(event.eventDate)}</p>
+              <p className="text-sm text-muted-foreground">{formatDateLong(event.eventDate)}</p>
               {event.location && (
                 <p className="text-sm text-muted-foreground">
                   {[event.location.city, event.location.country].filter(Boolean).join(', ')}
@@ -783,7 +600,7 @@ export default function InscribirsePage() {
 
             <div className="rounded-lg border bg-muted/40 p-4 w-full space-y-2 text-left">
               <p className="font-semibold">{event.name}</p>
-              <p className="text-sm text-muted-foreground">{formatDate(event.eventDate)}</p>
+              <p className="text-sm text-muted-foreground">{formatDateLong(event.eventDate)}</p>
               {selectedModality && (
                 <p className="text-sm text-muted-foreground">Modalidad: {selectedModality.name}</p>
               )}

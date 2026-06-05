@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, use } from 'react'
+import { use, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,8 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { checkin as checkinApi } from '@/lib/api'
-import type { ParticipantInEventResponse } from '@/lib/types'
+import { useCheckin } from '@/lib/hooks/useCheckin'
 import { CheckCircle2, Package, QrCode, Search, XCircle, AlertTriangle } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -40,77 +39,38 @@ const BLOOD_TYPE_LABELS: Record<string, string> = {
   O_NEGATIVE: 'O-',
 }
 
-interface SessionEntry {
-  bibNumber: number | null
-  fullName: string | null
-  deliveredAt: string
-}
-
-type SearchError = 'not_found' | 'cancelled' | null
-
 export default function PublicCheckinPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params)
   const searchParams = useSearchParams()
   const token = searchParams.get('token') ?? ''
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  const [isValidating, setIsValidating] = useState(true)
-  const [tokenValid, setTokenValid] = useState(false)
-  const [eventName, setEventName] = useState('')
+  const ck = useCheckin(eventId, token)
 
-  const [code, setCode] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
-  const [isDelivering, setIsDelivering] = useState(false)
-  const [participant, setParticipant] = useState<ParticipantInEventResponse | null>(null)
-  const [searchError, setSearchError] = useState<SearchError>(null)
-
-  const [totalConfirmed, setTotalConfirmed] = useState(0)
-  const [kitsDelivered, setKitsDelivered] = useState(0)
-  const [isLoadingStats, setIsLoadingStats] = useState(true)
-
-  const [sessionHistory, setSessionHistory] = useState<SessionEntry[]>([])
-
-  const [showScanner, setShowScanner] = useState(false)
-  const [cameraError, setCameraError] = useState(false)
-  const [deliveryError, setDeliveryError] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const scannerRef = useRef<any>(null)
-
-  useEffect(() => {
-    const validate = async () => {
-      if (!token) {
-        setIsValidating(false)
-        return
-      }
-      try {
-        const result = await checkinApi.validateToken(eventId, token)
-        setTokenValid(result.valid)
-        setEventName(result.eventName ?? '')
-      } catch {
-        setTokenValid(false)
-      } finally {
-        setIsValidating(false)
-      }
-    }
-    validate()
-  }, [eventId, token])
-
-  useEffect(() => {
-    if (!tokenValid) return
-    const fetchStats = async () => {
-      try {
-        const list = await checkinApi.getEventRegistrations(eventId, token)
-        const confirmed = list.filter(p => p.status === 'CONFIRMED')
-        setTotalConfirmed(confirmed.length)
-        setKitsDelivered(confirmed.filter(p => p.kitPickedUp).length)
-      } catch {
-        // stats are best-effort
-      } finally {
-        setIsLoadingStats(false)
-      }
-    }
-    fetchStats()
-  }, [eventId, tokenValid])
+  const {
+    isValidating,
+    tokenValid,
+    eventName,
+    code,
+    setCode,
+    isSearching,
+    participant,
+    searchError,
+    handleSearch,
+    inputRef,
+    totalConfirmed,
+    kitsDelivered,
+    isLoadingStats,
+    isDelivering,
+    deliveryError,
+    handleDeliverKit,
+    sessionHistory,
+    showScanner,
+    setShowScanner,
+    cameraError,
+    setCameraError,
+    scannerRef,
+    handleCloseScanner,
+  } = ck
 
   useEffect(() => {
     if (!showScanner) return
@@ -152,62 +112,6 @@ export default function PublicCheckinPage({ params }: { params: Promise<{ eventI
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showScanner])
-
-  const handleSearch = async (overrideCode?: string) => {
-    const searchCode = overrideCode ?? code
-    if (!searchCode.trim()) return
-
-    setIsSearching(true)
-    setParticipant(null)
-    setSearchError(null)
-
-    try {
-      const result = await checkinApi.findByCode(searchCode.trim(), token)
-      if (result.status === 'CANCELLED') {
-        setSearchError('cancelled')
-      } else {
-        setParticipant(result)
-      }
-    } catch {
-      setSearchError('not_found')
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  const handleDeliverKit = async () => {
-    if (!participant) return
-
-    setIsDelivering(true)
-    setDeliveryError(false)
-    try {
-      const updated = await checkinApi.markKitDelivered(participant.ticketCode, token)
-      setParticipant(updated)
-      setKitsDelivered(prev => prev + 1)
-      setSessionHistory(prev => [
-        {
-          bibNumber: updated.bibNumber,
-          fullName: updated.fullName,
-          deliveredAt: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-        },
-        ...prev.slice(0, 4),
-      ])
-
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setParticipant(null)
-      setCode('')
-      inputRef.current?.focus()
-    } catch {
-      setDeliveryError(true)
-    } finally {
-      setIsDelivering(false)
-    }
-  }
-
-  const handleCloseScanner = () => {
-    scannerRef.current?.clear().catch(() => null)
-    setShowScanner(false)
-  }
 
   if (isValidating) {
     return (

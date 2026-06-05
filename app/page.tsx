@@ -8,25 +8,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { events as eventsApi } from '@/lib/api'
 import type { EventSummaryResponse } from '@/lib/types'
 import { MapPin, CalendarDays, ArrowRight, Trophy, Timer, Medal, ChevronRight } from 'lucide-react'
-
-function formatDateShort(dateString?: string): string {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('es-MX', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function formatPrice(price?: number): string {
-  if (price === undefined || price === null) return ''
-  if (price === 0) return 'Gratis'
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  }).format(price)
-}
+import { formatDateNoWeekday, formatPrice } from '@/lib/domain/formatting'
 
 function FeaturedEventCard({ event }: { event: EventSummaryResponse }) {
   const [imgError, setImgError] = useState(false)
@@ -67,7 +49,7 @@ function FeaturedEventCard({ event }: { event: EventSummaryResponse }) {
           {event.eventDate && (
             <div className="flex items-center gap-1.5 text-xs text-white/80">
               <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-              <span className="capitalize">{formatDateShort(event.eventDate)}</span>
+              <span className="capitalize">{formatDateNoWeekday(event.eventDate)}</span>
             </div>
           )}
           {event.location && (
