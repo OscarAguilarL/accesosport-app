@@ -29,6 +29,7 @@ export default function SignupPage() {
     }
   }, [isAuthenticated, isAuthLoading, roles, router, needsOnboarding])
   const [error, setError] = useState<string | null>(null)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -132,7 +133,29 @@ export default function SignupPage() {
                 />
               </Field>
               
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Field>
+                <label className="flex cursor-pointer items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border accent-primary"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    disabled={isLoading}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Acepto los{' '}
+                    <Link href="/terminos" target="_blank" className="font-medium text-primary hover:underline">
+                      términos y condiciones
+                    </Link>
+                    {' '}y la{' '}
+                    <Link href="/privacidad" target="_blank" className="font-medium text-primary hover:underline">
+                      política de privacidad
+                    </Link>
+                  </span>
+                </label>
+              </Field>
+
+              <Button type="submit" className="w-full" disabled={isLoading || !termsAccepted}>
                 {isLoading ? (
                   <>
                     <Spinner className="mr-2" />

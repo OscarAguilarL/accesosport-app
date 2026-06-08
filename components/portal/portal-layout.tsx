@@ -334,6 +334,8 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
               )}
               <Link href="/acerca-de" className="hover:text-gray-900">Acerca de</Link>
               <Link href="/contacto" className="hover:text-gray-900">Contacto</Link>
+              <Link href="/terminos" className="hover:text-gray-900">Términos</Link>
+              <Link href="/privacidad" className="hover:text-gray-900">Privacidad</Link>
             </div>
             <p className="text-xs text-gray-400">© 2026 AccesoSport. Todos los derechos reservados.</p>
           </div>
