@@ -78,8 +78,8 @@ function RegistrationCTA({
   compact?: boolean
 }) {
   const isOpen = event.status === 'REGISTRATION_OPEN'
-  const totalSpots = modalities.reduce((s, m) => s + m.availableSpots, 0)
-  const hasSpots = modalities.length === 0 || totalSpots > 0
+  const totalSpots = event.availableSpots ?? 0
+  const hasSpots = totalSpots > 0
   const hasModalities = modalities.length > 0
   const minPrice = hasModalities ? Math.min(...modalities.map((m) => m.price)) : undefined
 
@@ -235,7 +235,7 @@ export default function EventDetailClient() {
   }
 
   const hasModalities = modalities.length > 0
-  const totalSpots = modalities.reduce((s, m) => s + m.availableSpots, 0)
+  const totalSpots = event.availableSpots ?? 0
   const minPrice = hasModalities ? Math.min(...modalities.map((m) => m.price)) : undefined
   const isOpen = event.status === 'REGISTRATION_OPEN'
   const showStickyMobileCTA = isOpen && !myRegistration
@@ -392,10 +392,7 @@ export default function EventDetailClient() {
                       <div>
                         <p className="font-semibold text-gray-900">{m.name}</p>
                         <p className="text-sm text-gray-500">
-                          {m.distance} {m.distanceUnit} ·{' '}
-                          <span className={m.availableSpots === 0 ? 'text-red-500' : 'text-gray-500'}>
-                            {m.availableSpots === 0 ? 'Sin lugares' : `${m.availableSpots} lugares`}
-                          </span>
+                          {m.distance} {m.distanceUnit}
                         </p>
                       </div>
                     </div>

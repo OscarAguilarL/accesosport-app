@@ -65,6 +65,9 @@ export interface EventResponse {
   galleryImages?: EventImageResponse[]
   createdAt?: string
   waiverTemplate?: string
+  maxCapacity?: number
+  registeredCount?: number
+  availableSpots?: number
 }
 
 export interface EventSummaryResponse {
@@ -98,6 +101,7 @@ export interface CreateEventRequest {
   country?: string
   registrationStartDate: string
   registrationEndDate: string
+  maxCapacity: number
   modalities: CreateModalityRequest[]
 }
 
@@ -284,9 +288,6 @@ export interface EventModalityResponse {
   distanceUnit: 'KM' | 'MI'
   price: number
   priceWithoutShirt?: number | null
-  capacity: number
-  registeredCount: number
-  availableSpots: number
 }
 
 export interface CreateModalityRequest {
@@ -295,7 +296,6 @@ export interface CreateModalityRequest {
   distanceUnit: 'KM' | 'MI'
   price: number
   priceWithoutShirt?: number | null
-  capacity: number
 }
 
 export interface EventCategoryResponse {

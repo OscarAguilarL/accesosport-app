@@ -71,7 +71,7 @@ export function useEventDetail(eventId: string): UseEventDetailResult {
   const [eventModalities, setEventModalities] = useState<EventModalityResponse[]>([])
   const [showModalityForm, setShowModalityForm] = useState(false)
   const [modalityForm, setModalityForm] = useState<CreateModalityRequest>({
-    name: '', distance: 0, distanceUnit: 'KM', price: 0, priceWithoutShirt: null, capacity: 100,
+    name: '', distance: 0, distanceUnit: 'KM', price: 0, priceWithoutShirt: null,
   })
   const [isSavingModality, setIsSavingModality] = useState(false)
   const [modalityError, setModalityError] = useState<string | null>(null)
@@ -118,7 +118,7 @@ export function useEventDetail(eventId: string): UseEventDetailResult {
     try {
       const created = await modalitiesApi.create(eventId, modalityForm)
       setEventModalities((prev) => [...prev, created])
-      setModalityForm({ name: '', distance: 0, distanceUnit: 'KM', price: 0, priceWithoutShirt: null, capacity: 100 })
+      setModalityForm({ name: '', distance: 0, distanceUnit: 'KM', price: 0, priceWithoutShirt: null })
       setShowModalityForm(false)
     } catch (err) {
       setModalityError(err instanceof ApiError ? (err.detail || err.message) : 'Error al crear la modalidad.')
@@ -268,7 +268,7 @@ export function useEventDetail(eventId: string): UseEventDetailResult {
     event,
     participants,
     eventModalities,
-    stats: getEventStats(eventModalities),
+    stats: getEventStats(event ?? {}),
     isLoading,
     isActionLoading,
     isLoadingParticipants,

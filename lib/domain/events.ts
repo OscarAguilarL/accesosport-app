@@ -1,4 +1,4 @@
-import type { EventSummaryResponse, EventModalityResponse, EventResponse } from '../types'
+import type { EventSummaryResponse, EventResponse } from '../types'
 
 export function isSoldOut(event: Pick<EventSummaryResponse, 'totalAvailableSpots'>): boolean {
   return event.totalAvailableSpots === 0
@@ -19,10 +19,10 @@ export interface EventStats {
   occupancyPercent: number
 }
 
-export function getEventStats(modalities: EventModalityResponse[]): EventStats {
-  const totalRegistered = modalities.reduce((s, m) => s + m.registeredCount, 0)
-  const totalCapacity   = modalities.reduce((s, m) => s + m.capacity, 0)
-  const totalAvailable  = modalities.reduce((s, m) => s + m.availableSpots, 0)
+export function getEventStats(event: EventResponse): EventStats {
+  const totalRegistered = event.registeredCount ?? 0
+  const totalCapacity   = event.maxCapacity ?? 0
+  const totalAvailable  = event.availableSpots ?? 0
   const occupancyPercent = totalCapacity > 0
     ? Math.round((totalRegistered / totalCapacity) * 100)
     : 0

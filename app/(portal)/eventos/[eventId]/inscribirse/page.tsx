@@ -324,16 +324,13 @@ export default function InscribirsePage() {
               <button
                 key={m.id}
                 onClick={() => handleSelectModality(m)}
-                disabled={m.availableSpots === 0}
-                className={`w-full rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-primary/5 ${
-                  m.availableSpots === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                }`}
+                className="w-full rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-primary/5 cursor-pointer"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">{m.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {m.distance} {m.distanceUnit} · {m.availableSpots > 0 ? `${m.availableSpots} lugares disponibles` : 'Sin lugares'}
+                      {m.distance} {m.distanceUnit}
                     </p>
                   </div>
                   <p className="text-lg font-bold shrink-0">{formatPrice(m.price)}</p>

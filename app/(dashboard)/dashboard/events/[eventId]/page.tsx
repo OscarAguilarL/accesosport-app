@@ -458,17 +458,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                           required
                         />
                       </Field>
-                      <Field>
-                        <FieldLabel htmlFor="mCapacity">Cupo *</FieldLabel>
-                        <Input
-                          id="mCapacity"
-                          type="number"
-                          value={modalityForm.capacity}
-                          onChange={(e) => setModalityForm({ ...modalityForm, capacity: parseInt(e.target.value) })}
-                          min={1}
-                          required
-                        />
-                      </Field>
                     </div>
                     <Field>
                       <FieldLabel htmlFor="mPriceWithoutShirt">Precio sin playera ($)</FieldLabel>
@@ -499,10 +488,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <div>
                     <p className="font-medium">{m.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {m.distance} {m.distanceUnit} · ${m.price.toFixed(2)} · {m.registeredCount}/{m.capacity} inscritos
+                      {m.distance} {m.distanceUnit} · ${m.price.toFixed(2)}
                     </p>
                   </div>
-                  {(event.status === 'DRAFT' || event.status === 'PUBLISHED') && m.registeredCount === 0 && (
+                  {(event.status === 'DRAFT' || event.status === 'PUBLISHED') && (
                     <Button size="icon" variant="ghost" onClick={() => handleDeleteModality(m.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
