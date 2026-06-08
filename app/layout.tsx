@@ -10,8 +10,17 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
-  title: 'AccesoSport — Carreras y eventos atléticos',
-  description: 'Encuentra tu próxima carrera, inscríbete y gestiona tus eventos deportivos.',
+  title: {
+    default: 'AccesoSport — Inscripciones a carreras y eventos deportivos',
+    template: '%s — AccesoSport',
+  },
+  description: 'La plataforma para inscribirte a carreras, maratones y eventos deportivos en México.',
+  metadataBase: new URL('https://accesosport.com'),
+  openGraph: {
+    siteName: 'AccesoSport',
+    locale: 'es_MX',
+    type: 'website',
+  },
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },
