@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageDropzone } from '@/components/ui/image-dropzone'
+import { DatePicker } from '@/components/ui/date-picker'
 
 const STEPS = [
   { title: 'Información personal', description: 'Cuéntanos sobre ti' },
@@ -220,11 +221,9 @@ export default function OnboardingPage() {
 
                 <Field>
                   <FieldLabel htmlFor="birthDate">Fecha de nacimiento *</FieldLabel>
-                  <Input
-                    id="birthDate"
-                    type="date"
+                  <DatePicker
                     value={personalData.birthDate}
-                    onChange={(e) => setPersonalData({ ...personalData, birthDate: e.target.value })}
+                    onChange={(v) => setPersonalData({ ...personalData, birthDate: v })}
                     required
                     disabled={isLoading}
                   />

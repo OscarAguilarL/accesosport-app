@@ -22,6 +22,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Save, UserCircle, User, Lock } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { DatePicker } from '@/components/ui/date-picker'
 
 const SHIRT_SIZE_OPTIONS: { value: ShirtSize; label: string }[] = [
   { value: 'SIZE_XS', label: 'XS' },
@@ -361,11 +362,9 @@ export default function PerfilPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <Field>
                         <FieldLabel htmlFor="birthDate">Fecha de nacimiento *</FieldLabel>
-                        <Input
-                          id="birthDate"
-                          type="date"
+                        <DatePicker
                           value={personalData.birthDate}
-                          onChange={(e) => setPersonalData({ ...personalData, birthDate: e.target.value })}
+                          onChange={(v) => setPersonalData({ ...personalData, birthDate: v })}
                           required
                           disabled={isSavingPersonalData}
                         />

@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
+import { DatePicker } from '@/components/ui/date-picker'
 
 const STEPS = [
   { title: 'Información personal', description: 'Cuéntanos sobre ti' },
@@ -187,11 +188,9 @@ export default function OnboardingParticipantePage() {
 
                 <Field>
                   <FieldLabel htmlFor="birthDate">Fecha de nacimiento *</FieldLabel>
-                  <Input
-                    id="birthDate"
-                    type="date"
+                  <DatePicker
                     value={personalData.birthDate}
-                    onChange={(e) => setPersonalData({ ...personalData, birthDate: e.target.value })}
+                    onChange={(v) => setPersonalData({ ...personalData, birthDate: v })}
                     required
                     disabled={isLoading}
                   />
