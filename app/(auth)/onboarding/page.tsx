@@ -23,8 +23,8 @@ const STEPS = [
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { refreshUser } = useAuth()
-  const [step, setStep] = useState(0)
+  const { refreshUser, user } = useAuth()
+  const [step, setStep] = useState(() => (typeof window !== 'undefined' && !!user?.firstName ? 2 : 0))
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -95,11 +95,29 @@ export default function OnboardingPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const { token } = await profileApi.createOrganizer(organizerProfile)
+      const pendingToken = localStorage.getItem('pendingInvitationToken') ?? undefined
+      const { token } = await profileApi.createOrganizer({
+        ...organizerProfile,
+        invitationToken: pendingToken,
+      })
       localStorage.setItem('accessToken', token)
+      localStorage.removeItem('pendingInvitationToken')
       setStep(3)
     } catch (err) {
-      setError(err instanceof ApiError ? (err.detail || err.message) : 'Error al crear el perfil.')
+      if (err instanceof ApiError && err.status === 422) {
+        // Token de invitación no coincide con esta cuenta — descartarlo y reintentar sin él
+        localStorage.removeItem('pendingInvitationToken')
+        try {
+          const { token } = await profileApi.createOrganizer(organizerProfile)
+          localStorage.setItem('accessToken', token)
+          setStep(3)
+          return
+        } catch (retryErr) {
+          setError(retryErr instanceof ApiError ? (retryErr.detail || retryErr.message) : 'Error al crear el perfil.')
+        }
+      } else {
+        setError(err instanceof ApiError ? (err.detail || err.message) : 'Error al crear el perfil.')
+      }
     } finally {
       setIsLoading(false)
     }

@@ -138,6 +138,36 @@ export interface CreateOrganizerProfileRequest {
   facebook?: string
   instagram?: string
   description?: string
+  invitationToken?: string
+}
+
+export interface InvitationValidationResponse {
+  email: string
+  accountExists: boolean
+}
+
+export type InvitationStatus = 'PENDING' | 'USED' | 'REVOKED'
+
+export interface InvitationResponse {
+  id: string
+  token: string
+  email: string
+  reason?: string
+  status: InvitationStatus
+  createdAt: string
+  usedAt?: string
+  revokedAt?: string
+}
+
+export interface CreateInvitationRequest {
+  email: string
+  reason?: string
+}
+
+export const INVITATION_STATUS_LABELS: Record<InvitationStatus, string> = {
+  PENDING: 'Pendiente',
+  USED: 'Usado',
+  REVOKED: 'Revocado',
 }
 
 export interface SavePersonalDataRequest {

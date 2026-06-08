@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Trophy,
+  Mail,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -22,17 +23,20 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-const navItems = [
-  { title: 'Dashboard',            href: '/dashboard',            icon: LayoutDashboard },
-  { title: 'Mis Eventos',          href: '/dashboard/events',     icon: Calendar },
-  { title: 'Crear Evento',         href: '/dashboard/events/new', icon: PlusCircle },
-  { title: 'Configuración',        href: '/dashboard/settings',   icon: Settings },
-  { title: 'Portal participantes', href: '/eventos',              icon: Trophy },
+const baseNavItems = [
+  { title: 'Dashboard',            href: '/dashboard',                  icon: LayoutDashboard, adminOnly: false },
+  { title: 'Mis Eventos',          href: '/dashboard/events',           icon: Calendar,        adminOnly: false },
+  { title: 'Crear Evento',         href: '/dashboard/events/new',       icon: PlusCircle,      adminOnly: false },
+  { title: 'Invitaciones',         href: '/dashboard/invitaciones',     icon: Mail,            adminOnly: true  },
+  { title: 'Configuración',        href: '/dashboard/settings',         icon: Settings,        adminOnly: false },
+  { title: 'Portal participantes', href: '/eventos',                    icon: Trophy,          adminOnly: false },
 ]
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const { user, logout, roles } = useAuth()
+  const isAdmin = roles.includes('ROLE_ADMIN')
+  const navItems = baseNavItems.filter((item) => !item.adminOnly || isAdmin)
 
   const initials = user?.firstName
     ? user.firstName[0].toUpperCase()
