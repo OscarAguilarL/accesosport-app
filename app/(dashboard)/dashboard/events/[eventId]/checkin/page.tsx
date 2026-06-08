@@ -81,8 +81,8 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const list = await registrationsApi.getByEvent(eventId)
-        const confirmed = list.filter(p => p.status === 'CONFIRMED')
+        const res = await registrationsApi.getByEvent(eventId, 0, 100)
+        const confirmed = res.content.filter(p => p.status === 'CONFIRMED')
         setTotalConfirmed(confirmed.length)
         setKitsDelivered(confirmed.filter(p => p.kitPickedUp).length)
       } catch {

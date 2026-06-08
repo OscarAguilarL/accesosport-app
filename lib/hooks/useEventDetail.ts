@@ -25,6 +25,10 @@ const PARTICIPANTS_STATUSES = new Set(['REGISTRATION_OPEN', 'REGISTRATION_CLOSED
 export interface UseEventDetailResult {
   event: EventResponse | null
   participants: ParticipantInEventResponse[]
+  participantPage: number
+  participantTotalPages: number
+  participantTotalElements: number
+  setParticipantPage: (page: number) => void
   eventModalities: EventModalityResponse[]
   stats: EventStats
 
@@ -67,6 +71,9 @@ export function useEventDetail(eventId: string): UseEventDetailResult {
   const [isLoading, setIsLoading] = useState(true)
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [participants, setParticipants] = useState<ParticipantInEventResponse[]>([])
+  const [participantPage, setParticipantPage] = useState(0)
+  const [participantTotalPages, setParticipantTotalPages] = useState(0)
+  const [participantTotalElements, setParticipantTotalElements] = useState(0)
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false)
   const [eventModalities, setEventModalities] = useState<EventModalityResponse[]>([])
   const [showModalityForm, setShowModalityForm] = useState(false)
@@ -82,6 +89,8 @@ export function useEventDetail(eventId: string): UseEventDetailResult {
   const [copied, setCopied] = useState(false)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
+  const [eventStatus, setEventStatus] = useState<string | null>(null)
+
   useEffect(() => {
     const fetchEvent = async () => {
       try {
@@ -91,17 +100,7 @@ export function useEventDetail(eventId: string): UseEventDetailResult {
         ])
         setEvent(data)
         setEventModalities(mods)
-        if (data.status && PARTICIPANTS_STATUSES.has(data.status)) {
-          setIsLoadingParticipants(true)
-          try {
-            const list = await registrationsApi.getByEvent(eventId)
-            setParticipants(list)
-          } catch (error) {
-            console.log('[useEventDetail] Error fetching participants:', error)
-          } finally {
-            setIsLoadingParticipants(false)
-          }
-        }
+        setEventStatus(data.status ?? null)
       } catch (error) {
         console.log('[useEventDetail] Error fetching event:', error)
       } finally {
@@ -110,6 +109,19 @@ export function useEventDetail(eventId: string): UseEventDetailResult {
     }
     fetchEvent()
   }, [eventId])
+
+  useEffect(() => {
+    if (!eventStatus || !PARTICIPANTS_STATUSES.has(eventStatus)) return
+    setIsLoadingParticipants(true)
+    registrationsApi.getByEvent(eventId, participantPage)
+      .then((res) => {
+        setParticipants(res.content)
+        setParticipantTotalPages(res.totalPages)
+        setParticipantTotalElements(res.totalElements)
+      })
+      .catch((error) => console.log('[useEventDetail] Error fetching participants:', error))
+      .finally(() => setIsLoadingParticipants(false))
+  }, [eventId, eventStatus, participantPage])
 
   const handleAddModality = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -267,6 +279,10 @@ export function useEventDetail(eventId: string): UseEventDetailResult {
   return {
     event,
     participants,
+    participantPage,
+    participantTotalPages,
+    participantTotalElements,
+    setParticipantPage,
     eventModalities,
     stats: getEventStats(event ?? {}),
     isLoading,

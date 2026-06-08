@@ -8,22 +8,24 @@ import type {
   CreateModalityRequest,
   EventCategoryResponse,
   CreateCategoryRequest,
+  PagedResponse,
 } from '../types'
 
 export const events = {
-  list: (status?: EventSummaryResponse['status']) =>
-    fetchApi<EventSummaryResponse[]>(
-      status ? `/api/v1/events?eventStatus=${status}` : '/api/v1/events'
-    ),
+  list: (status?: EventSummaryResponse['status'], page = 0, size = 20) => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    if (status) params.set('eventStatus', status)
+    return fetchApi<PagedResponse<EventSummaryResponse>>(`/api/v1/events?${params}`)
+  },
 
-  listMyEvents: () =>
-    fetchApi<EventSummaryResponse[]>('/api/v1/events/my-events'),
+  listMyEvents: (page = 0, size = 20) =>
+    fetchApi<PagedResponse<EventSummaryResponse>>(`/api/v1/events/my-events?page=${page}&size=${size}`),
 
-  listAvailable: () =>
-    fetchApi<EventSummaryResponse[]>('/api/v1/public/events/available'),
+  listAvailable: (page = 0, size = 20) =>
+    fetchApi<PagedResponse<EventSummaryResponse>>(`/api/v1/public/events/available?page=${page}&size=${size}`),
 
-  listPublished: () =>
-    fetchApi<EventSummaryResponse[]>('/api/v1/public/events/published'),
+  listPublished: (page = 0, size = 20) =>
+    fetchApi<PagedResponse<EventSummaryResponse>>(`/api/v1/public/events/published?page=${page}&size=${size}`),
 
   get: (eventId: string) =>
     fetchApi<EventResponse>(`/api/v1/public/events/${eventId}`),

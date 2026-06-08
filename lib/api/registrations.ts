@@ -1,14 +1,15 @@
 import { fetchApi, ApiError, API_BASE_URL } from './client'
 import type {
   ParticipantInEventResponse,
+  PagedResponse,
   RegistrationResponse,
   CheckinTokenResponse,
   CheckinTokenValidationResponse,
 } from '../types'
 
 export const registrations = {
-  getByEvent: (eventId: string) =>
-    fetchApi<ParticipantInEventResponse[]>(`/api/v1/events/${eventId}/registrations`),
+  getByEvent: (eventId: string, page = 0, size = 20) =>
+    fetchApi<PagedResponse<ParticipantInEventResponse>>(`/api/v1/events/${eventId}/registrations?page=${page}&size=${size}`),
 
   register: (eventId: string, modalityId?: string, categoryId?: string, waiverAccepted?: boolean, wantsShirt?: boolean) =>
     fetchApi<RegistrationResponse>(`/api/v1/events/${eventId}/register`, {
@@ -59,8 +60,8 @@ export const checkin = {
     ),
 
   getEventRegistrations: (eventId: string, token?: string) =>
-    fetchApi<ParticipantInEventResponse[]>(
-      `/api/v1/events/${eventId}/registrations${token ? `?token=${token}` : ''}`
+    fetchApi<PagedResponse<ParticipantInEventResponse>>(
+      `/api/v1/events/${eventId}/registrations?page=0&size=100${token ? `&token=${token}` : ''}`
     ),
 
   generateToken: (eventId: string) =>

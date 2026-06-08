@@ -92,8 +92,8 @@ export function useCheckin(eventId: string, token: string): UseCheckinResult {
     if (!tokenValid) return
     const fetchStats = async () => {
       try {
-        const list = await checkinApi.getEventRegistrations(eventId, token)
-        const { totalConfirmed: tc, kitsDelivered: kd } = buildCheckinStats(list)
+        const res = await checkinApi.getEventRegistrations(eventId, token)
+        const { totalConfirmed: tc, kitsDelivered: kd } = buildCheckinStats(res.content)
         setTotalConfirmed(tc)
         setKitsDelivered(kd)
       } catch {

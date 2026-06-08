@@ -39,8 +39,8 @@ export function useDashboardStats(): UseDashboardStatsResult {
 
   useEffect(() => {
     eventsApi
-      .listMyEvents()
-      .then(setMyEvents)
+      .listMyEvents(0, 100)
+      .then((res) => setMyEvents(res.content))
       .catch((e: unknown) => {
         console.error('[useDashboardStats]', e)
         setError((e as Error)?.message ?? 'Error al cargar los eventos')

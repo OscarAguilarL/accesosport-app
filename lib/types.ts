@@ -1,5 +1,15 @@
 // API Types based on OpenAPI spec
 
+export interface PagedResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
 export interface AuthResponse {
   id: string
   email: string

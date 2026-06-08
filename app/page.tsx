@@ -74,11 +74,11 @@ export default function LandingPage() {
 
   useEffect(() => {
     Promise.all([
-      eventsApi.listAvailable().catch(() => [] as EventSummaryResponse[]),
-      eventsApi.listPublished().catch(() => [] as EventSummaryResponse[]),
+      eventsApi.listAvailable(0, 3).catch(() => null),
+      eventsApi.listPublished(0, 3).catch(() => null),
     ]).then(([available, published]) => {
-      setFeaturedEvents(available.slice(0, 3))
-      setPublishedEvents(published.slice(0, 3))
+      if (available) setFeaturedEvents(available.content)
+      if (published) setPublishedEvents(published.content)
     }).finally(() => setIsLoading(false))
   }, [])
 

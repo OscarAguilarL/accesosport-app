@@ -32,6 +32,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import { useEventDetail } from '@/lib/hooks/useEventDetail'
 import { EVENT_STATUS_LABELS } from '@/lib/types'
 import { Input } from '@/components/ui/input'
@@ -74,6 +81,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
   const {
     event,
     participants,
+    participantPage,
+    participantTotalPages,
+    setParticipantPage,
     eventModalities,
     stats,
     isLoading,
@@ -674,6 +684,31 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                     ))}
                   </TableBody>
                 </Table>
+              )}
+              {participantTotalPages > 1 && (
+                <Pagination className="mt-4">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setParticipantPage(Math.max(0, participantPage - 1))}
+                        aria-disabled={participantPage === 0}
+                        className={participantPage === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <span className="px-3 py-1 text-sm text-muted-foreground">
+                        Página {participantPage + 1} de {participantTotalPages}
+                      </span>
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setParticipantPage(Math.min(participantTotalPages - 1, participantPage + 1))}
+                        aria-disabled={participantPage >= participantTotalPages - 1}
+                        className={participantPage >= participantTotalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               )}
             </CardContent>
           </Card>
