@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
@@ -14,7 +14,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ApiError } from '@/lib/api'
 
-export default function OrganizerSignupPage() {
+function OrganizerSignupContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { signup, isAuthenticated, isLoading: isAuthLoading } = useAuth()
@@ -234,5 +234,17 @@ export default function OrganizerSignupPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function OrganizerSignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Spinner />
+      </div>
+    }>
+      <OrganizerSignupContent />
+    </Suspense>
   )
 }
