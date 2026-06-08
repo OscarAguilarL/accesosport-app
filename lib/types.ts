@@ -336,6 +336,22 @@ export interface CheckinTokenValidationResponse {
   eventName: string
 }
 
+export interface RegisterParticipantRequest {
+  participantEmail: string
+  participantFirstName: string
+  participantLastName: string
+  participantPhone?: string
+  modalityId?: string
+  categoryId?: string
+  waiverAccepted: boolean
+  wantsShirt: boolean
+  shirtSize?: ShirtSize
+  bloodType?: BloodType
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  medicalConditions?: string
+}
+
 export interface ParticipantInEventResponse {
   registrationId: string
   participantId: string

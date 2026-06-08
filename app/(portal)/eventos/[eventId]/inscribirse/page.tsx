@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import type { ShirtSize, BloodType, Gender } from '@/lib/types'
+import type { ShirtSize, BloodType } from '@/lib/types'
 import { useRegistrationFlow } from '@/lib/hooks/useRegistrationFlow'
 import { formatPrice, formatDateLong } from '@/lib/domain/formatting'
 import { Button } from '@/components/ui/button'
@@ -32,12 +32,6 @@ const BLOOD_TYPE_OPTIONS: { value: BloodType; label: string }[] = [
   { value: 'AB_NEGATIVE', label: 'AB-' },
   { value: 'O_POSITIVE', label: 'O+' },
   { value: 'O_NEGATIVE', label: 'O-' },
-]
-
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [
-  { value: 'FEMENIL', label: 'Femenil' },
-  { value: 'VARONIL', label: 'Varonil' },
-  { value: 'OTRO', label: 'Otro' },
 ]
 
 export default function InscribirsePage() {
@@ -72,12 +66,10 @@ export default function InscribirsePage() {
     waiverAcceptedAtTime,
     showWaiverModal,
     setShowWaiverModal,
-    showProfileForm,
-    profileFormData,
-    setProfileFormData,
-    isSavingProfile,
+    participantFormData,
+    setParticipantFormData,
     profileError,
-    handleSaveProfile,
+    handleNextFromProfile,
     isRegistering,
     registerError,
     handleRegister,
@@ -170,145 +162,144 @@ export default function InscribirsePage() {
         ))}
       </div>
 
-      {/* Step 1: Profile */}
+      {/* Step 1: Participant data */}
       {step === 'profile' && (
         <Card>
           <CardHeader>
-            <CardTitle>Perfil de participante</CardTitle>
+            <CardTitle>Datos del participante</CardTitle>
             <CardDescription>
-              {showProfileForm
-                ? 'Completa tu perfil antes de continuar con la inscripción.'
-                : 'Verificando tu perfil...'}
+              Ingresa tus datos para completar la inscripción.
             </CardDescription>
           </CardHeader>
-          {showProfileForm && (
-            <CardContent>
-              <form onSubmit={handleSaveProfile}>
-                <FieldGroup>
-                  {profileError && (
-                    <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                      {profileError}
-                    </div>
-                  )}
+          <CardContent>
+            <FieldGroup>
+              {profileError && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  {profileError}
+                </div>
+              )}
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="shirtSize">Talla de playera *</FieldLabel>
-                      <Select
-                        value={profileFormData.shirtSize}
-                        onValueChange={(v) => setProfileFormData({ ...profileFormData, shirtSize: v as ShirtSize })}
-                        required
-                      >
-                        <SelectTrigger id="shirtSize">
-                          <SelectValue placeholder="Selecciona tu talla" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SHIRT_SIZE_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="firstName">Nombre *</FieldLabel>
+                  <Input
+                    id="firstName"
+                    value={participantFormData.firstName}
+                    onChange={(e) => setParticipantFormData({ ...participantFormData, firstName: e.target.value })}
+                    placeholder="Tu nombre"
+                    required
+                  />
+                </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="bloodType">Tipo de sangre *</FieldLabel>
-                      <Select
-                        value={profileFormData.bloodType}
-                        onValueChange={(v) => setProfileFormData({ ...profileFormData, bloodType: v as BloodType })}
-                        required
-                      >
-                        <SelectTrigger id="bloodType">
-                          <SelectValue placeholder="Selecciona tu tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BLOOD_TYPE_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
+                <Field>
+                  <FieldLabel htmlFor="lastName">Apellido *</FieldLabel>
+                  <Input
+                    id="lastName"
+                    value={participantFormData.lastName}
+                    onChange={(e) => setParticipantFormData({ ...participantFormData, lastName: e.target.value })}
+                    placeholder="Tu apellido"
+                    required
+                  />
+                </Field>
+              </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="phone">Teléfono *</FieldLabel>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={profileFormData.phone}
-                        onChange={(e) => setProfileFormData({ ...profileFormData, phone: e.target.value })}
-                        placeholder="10 dígitos"
-                        required
-                      />
-                    </Field>
+              <Field>
+                <FieldLabel htmlFor="email">Email *</FieldLabel>
+                <Input
+                  id="email"
+                  type="email"
+                  value={participantFormData.email}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, email: e.target.value })}
+                  placeholder="tu@email.com"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">Recibirás tu boleto en este correo.</p>
+              </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="gender">Género *</FieldLabel>
-                      <Select
-                        value={profileFormData.gender}
-                        onValueChange={(v) => setProfileFormData({ ...profileFormData, gender: v as Gender })}
-                        required
-                      >
-                        <SelectTrigger id="gender">
-                          <SelectValue placeholder="Selecciona" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GENDER_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
+              <Field>
+                <FieldLabel htmlFor="phone">Teléfono</FieldLabel>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={participantFormData.phone}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, phone: e.target.value })}
+                  placeholder="10 dígitos (opcional)"
+                />
+              </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="emergencyName">Nombre del contacto de emergencia *</FieldLabel>
-                    <Input
-                      id="emergencyName"
-                      value={profileFormData.emergencyContactName}
-                      onChange={(e) => setProfileFormData({ ...profileFormData, emergencyContactName: e.target.value })}
-                      placeholder="Nombre completo"
-                      required
-                    />
-                  </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="bloodType">Tipo de sangre</FieldLabel>
+                  <Select
+                    value={participantFormData.bloodType}
+                    onValueChange={(v) => setParticipantFormData({ ...participantFormData, bloodType: v as BloodType })}
+                  >
+                    <SelectTrigger id="bloodType">
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BLOOD_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="emergencyPhone">Teléfono del contacto de emergencia *</FieldLabel>
-                    <Input
-                      id="emergencyPhone"
-                      type="tel"
-                      value={profileFormData.emergencyContactPhone}
-                      onChange={(e) => setProfileFormData({ ...profileFormData, emergencyContactPhone: e.target.value })}
-                      placeholder="10 dígitos"
-                      required
-                    />
-                  </Field>
+                <Field>
+                  <FieldLabel htmlFor="shirtSize">Talla de playera</FieldLabel>
+                  <Select
+                    value={participantFormData.shirtSize}
+                    onValueChange={(v) => setParticipantFormData({ ...participantFormData, shirtSize: v as ShirtSize })}
+                  >
+                    <SelectTrigger id="shirtSize">
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SHIRT_SIZE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
 
-                  <Field>
-                    <FieldLabel htmlFor="medicalConditions">Condiciones médicas</FieldLabel>
-                    <Textarea
-                      id="medicalConditions"
-                      value={profileFormData.medicalConditions}
-                      onChange={(e) => setProfileFormData({ ...profileFormData, medicalConditions: e.target.value })}
-                      placeholder="Alergias, enfermedades, medicamentos... (opcional)"
-                      rows={3}
-                    />
-                  </Field>
+              <Field>
+                <FieldLabel htmlFor="emergencyName">Contacto de emergencia</FieldLabel>
+                <Input
+                  id="emergencyName"
+                  value={participantFormData.emergencyContactName}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, emergencyContactName: e.target.value })}
+                  placeholder="Nombre completo (opcional)"
+                />
+              </Field>
 
-                  <Button type="submit" disabled={isSavingProfile}>
-                    {isSavingProfile ? (
-                      <>
-                        <Spinner className="mr-2" />
-                        Guardando...
-                      </>
-                    ) : (
-                      'Guardar y continuar'
-                    )}
-                  </Button>
-                </FieldGroup>
-              </form>
-            </CardContent>
-          )}
+              <Field>
+                <FieldLabel htmlFor="emergencyPhone">Teléfono de emergencia</FieldLabel>
+                <Input
+                  id="emergencyPhone"
+                  type="tel"
+                  value={participantFormData.emergencyContactPhone}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, emergencyContactPhone: e.target.value })}
+                  placeholder="10 dígitos (opcional)"
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="medicalConditions">Condiciones médicas</FieldLabel>
+                <Textarea
+                  id="medicalConditions"
+                  value={participantFormData.medicalConditions}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, medicalConditions: e.target.value })}
+                  placeholder="Alergias, enfermedades, medicamentos... (opcional)"
+                  rows={3}
+                />
+              </Field>
+
+              <Button type="button" onClick={handleNextFromProfile}>
+                Continuar
+              </Button>
+            </FieldGroup>
+          </CardContent>
         </Card>
       )}
 
@@ -456,6 +447,12 @@ export default function InscribirsePage() {
                   {[event.location.city, event.location.country].filter(Boolean).join(', ')}
                 </p>
               )}
+              <p className="text-sm text-muted-foreground">
+                Participante: <strong>{flow.participantFullName}</strong>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Boleto al email: <strong>{participantFormData.email}</strong>
+              </p>
               {selectedModality && (
                 <div className="mt-2 rounded-md bg-primary/10 p-2">
                   <p className="text-sm font-medium">Modalidad: {selectedModality.name}</p>
@@ -609,8 +606,12 @@ export default function InscribirsePage() {
               </p>
             </div>
 
+            <p className="text-sm text-muted-foreground">
+              Tu boleto fue enviado a <strong>{participantFormData.email}</strong>.
+            </p>
+
             <Button asChild className="w-full">
-              <Link href="/mis-inscripciones">Ver mis inscripciones</Link>
+              <Link href="/eventos">Ver más eventos</Link>
             </Button>
           </CardContent>
         </Card>

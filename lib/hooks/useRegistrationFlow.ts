@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   events as eventsApi,
   profile as profileApi,
@@ -11,7 +10,6 @@ import {
   ApiError,
 } from '../api'
 import {
-  isProfileComplete,
   calculatePrice,
   getSuggestedCategory,
   getParticipantAge,
@@ -19,12 +17,11 @@ import {
 import { useAuth } from '../auth-context'
 import type {
   EventResponse,
-  CreateParticipantProfileRequest,
   ShirtSize,
   BloodType,
-  Gender,
   EventModalityResponse,
   EventCategoryResponse,
+  RegisterParticipantRequest,
 } from '../types'
 
 export type RegistrationStep = 'profile' | 'modality' | 'category' | 'confirm' | 'success'
@@ -33,6 +30,18 @@ export interface StepDescriptor {
   key: RegistrationStep
   label: string
   number: number
+}
+
+export interface ParticipantFormData {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  shirtSize: ShirtSize | ''
+  bloodType: BloodType | ''
+  emergencyContactName: string
+  emergencyContactPhone: string
+  medicalConditions: string
 }
 
 export interface UseRegistrationFlowResult {
@@ -69,12 +78,10 @@ export interface UseRegistrationFlowResult {
   setShowWaiverModal: (v: boolean) => void
   handleAcceptWaiver: () => void
 
-  showProfileForm: boolean
-  profileFormData: CreateParticipantProfileRequest
-  setProfileFormData: (v: CreateParticipantProfileRequest) => void
-  isSavingProfile: boolean
+  participantFormData: ParticipantFormData
+  setParticipantFormData: (v: ParticipantFormData) => void
   profileError: string | null
-  handleSaveProfile: (e: React.FormEvent) => Promise<void>
+  handleNextFromProfile: () => void
 
   isRegistering: boolean
   registerError: string | null
@@ -83,19 +90,20 @@ export interface UseRegistrationFlowResult {
   isPageLoading: boolean
 }
 
-const DEFAULT_PROFILE: CreateParticipantProfileRequest = {
-  shirtSize: 'SIZE_M' as ShirtSize,
-  bloodType: 'O_POSITIVE' as BloodType,
+const DEFAULT_PARTICIPANT_FORM: ParticipantFormData = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  shirtSize: '',
+  bloodType: '',
   emergencyContactName: '',
   emergencyContactPhone: '',
   medicalConditions: '',
-  phone: '',
-  gender: 'FEMENIL' as Gender,
 }
 
 export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult {
-  const router = useRouter()
-  const { user, isAuthenticated, isLoading: isAuthLoading, refreshUser } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth()
 
   const [step, setStep] = useState<RegistrationStep>('profile')
   const [event, setEvent] = useState<EventResponse | null>(null)
@@ -106,10 +114,7 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [ticketCode, setTicketCode] = useState('')
 
-  const [profileFormData, setProfileFormData] = useState<CreateParticipantProfileRequest>(DEFAULT_PROFILE)
-  const [profileExists, setProfileExists] = useState(false)
-  const [showProfileForm, setShowProfileForm] = useState(false)
-  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [participantFormData, setParticipantFormData] = useState<ParticipantFormData>(DEFAULT_PARTICIPANT_FORM)
   const [profileError, setProfileError] = useState<string | null>(null)
 
   const [wantsShirt, setWantsShirt] = useState<boolean | null>(null)
@@ -122,80 +127,58 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
   const [waiverAcceptedAtTime, setWaiverAcceptedAtTime] = useState<Date | null>(null)
 
   useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent(`/eventos/${eventId}/inscribirse`)}`)
-    }
-  }, [isAuthenticated, isAuthLoading, router, eventId])
+    if (isAuthLoading) return
 
-  useEffect(() => {
-    if (!isAuthenticated) return
+    const profilePromise = isAuthenticated
+      ? profileApi.getParticipant().catch((err: unknown) => {
+          if (err instanceof ApiError && (err.status === 404 || err.status === 401)) return null
+          return null
+        })
+      : Promise.resolve(null)
 
     Promise.all([
       eventsApi.get(eventId),
       modalitiesApi.list(eventId).catch(() => [] as EventModalityResponse[]),
       categoriesApi.list(eventId).catch(() => [] as EventCategoryResponse[]),
-      profileApi.getParticipant().catch((err: unknown) => {
-        if (err instanceof ApiError && err.status === 404) return null
-        throw err
-      }),
+      profilePromise,
     ])
       .then(([eventData, modalitiesData, categoriesData, profileData]) => {
         setEvent(eventData)
         setEventModalities(modalitiesData)
         setEventCategories(categoriesData)
-        if (!profileData || !isProfileComplete(profileData)) {
-          if (profileData?.shirtSize) {
-            setProfileExists(true)
-            setProfileFormData({
-              shirtSize: profileData.shirtSize,
-              bloodType: profileData.bloodType ?? 'O_POSITIVE',
-              emergencyContactName: profileData.emergencyContactName ?? '',
-              emergencyContactPhone: profileData.emergencyContactPhone ?? '',
-              medicalConditions: profileData.medicalConditions ?? '',
-              phone: profileData.phone ?? '',
-              gender: profileData.gender ?? 'FEMENIL',
-            })
-          }
-          setShowProfileForm(true)
-        } else if (modalitiesData.length > 0) {
-          setStep('modality')
-        } else if (categoriesData.length > 0) {
-          setStep('category')
-        } else {
-          setStep('confirm')
+
+        // Pre-fill participant form from auth user + profile
+        const prefilled: ParticipantFormData = {
+          firstName: user?.firstName ?? '',
+          lastName: user?.lastName ?? '',
+          email: user?.email ?? '',
+          phone: profileData?.phone ?? '',
+          shirtSize: (profileData?.shirtSize as ShirtSize) ?? '',
+          bloodType: (profileData?.bloodType as BloodType) ?? '',
+          emergencyContactName: profileData?.emergencyContactName ?? '',
+          emergencyContactPhone: profileData?.emergencyContactPhone ?? '',
+          medicalConditions: profileData?.medicalConditions ?? '',
         }
+        setParticipantFormData(prefilled)
       })
       .catch((err: unknown) => {
         setProfileError(err instanceof ApiError ? (err.detail || err.message) : 'Error al cargar los datos.')
       })
       .finally(() => setIsPageLoading(false))
-  }, [isAuthenticated, eventId])
+  }, [isAuthLoading, isAuthenticated, eventId, user?.firstName, user?.lastName, user?.email])
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSavingProfile(true)
+  const handleNextFromProfile = () => {
+    if (!participantFormData.firstName.trim() || !participantFormData.lastName.trim() || !participantFormData.email.trim()) {
+      setProfileError('Nombre, apellido y email son requeridos.')
+      return
+    }
     setProfileError(null)
-    try {
-      const payload = { ...profileFormData, medicalConditions: profileFormData.medicalConditions || undefined }
-      if (profileExists) {
-        await profileApi.updateParticipant(payload)
-      } else {
-        const result = await profileApi.createParticipant(payload)
-        localStorage.setItem('accessToken', result.token)
-        await refreshUser()
-      }
-      setShowProfileForm(false)
-      if (eventModalities.length > 0) {
-        setStep('modality')
-      } else if (eventCategories.length > 0) {
-        setStep('category')
-      } else {
-        setStep('confirm')
-      }
-    } catch (err) {
-      setProfileError(err instanceof ApiError ? (err.detail || err.message) : 'Error al guardar el perfil.')
-    } finally {
-      setIsSavingProfile(false)
+    if (eventModalities.length > 0) {
+      setStep('modality')
+    } else if (eventCategories.length > 0) {
+      setStep('category')
+    } else {
+      setStep('confirm')
     }
   }
 
@@ -213,19 +196,28 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
     setIsRegistering(true)
     setRegisterError(null)
     try {
-      const reg = await registrationsApi.register(
-        eventId,
-        selectedModality?.id,
-        selectedCategory?.id,
-        true,
-        wantsShirt ?? true
-      )
+      const payload: RegisterParticipantRequest = {
+        participantEmail: participantFormData.email,
+        participantFirstName: participantFormData.firstName,
+        participantLastName: participantFormData.lastName,
+        participantPhone: participantFormData.phone || undefined,
+        modalityId: selectedModality?.id,
+        categoryId: selectedCategory?.id,
+        waiverAccepted: true,
+        wantsShirt: wantsShirt ?? true,
+        shirtSize: participantFormData.shirtSize || undefined,
+        bloodType: participantFormData.bloodType || undefined,
+        emergencyContactName: participantFormData.emergencyContactName || undefined,
+        emergencyContactPhone: participantFormData.emergencyContactPhone || undefined,
+        medicalConditions: participantFormData.medicalConditions || undefined,
+      }
+      const reg = await registrationsApi.register(eventId, payload, isAuthenticated)
       setTicketCode(reg.ticketCode)
       setStep('success')
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          setRegisterError('Ya estás inscrito en este evento.')
+          setRegisterError('Ya estás inscrito en este evento con este email.')
         } else if (err.status === 422) {
           setRegisterError(
             err.detail || 'No es posible completar la inscripción. Verifica que el evento tenga cupo y las inscripciones estén abiertas.'
@@ -242,10 +234,9 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
   }
 
   const handleAcceptWaiver = () => {
-    const now = new Date()
     setWaiverRead(true)
     setWaiverAccepted(true)
-    setWaiverAcceptedAtTime(now)
+    setWaiverAcceptedAtTime(new Date())
     setShowWaiverModal(false)
   }
 
@@ -255,12 +246,13 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
     : eventCategories
   const suggestedCategory = getSuggestedCategory(relevantCategories, participantAge)
   const effectivePrice = calculatePrice(selectedModality, wantsShirt)
-  const participantFullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Participante'
+  const participantFullName =
+    [participantFormData.firstName, participantFormData.lastName].filter(Boolean).join(' ') || 'Participante'
   const hasModalities = eventModalities.length > 0
   const hasCategories = relevantCategories.length > 0
 
   const allSteps: StepDescriptor[] = (() => {
-    const base: { key: RegistrationStep; label: string }[] = [{ key: 'profile', label: 'Perfil' }]
+    const base: { key: RegistrationStep; label: string }[] = [{ key: 'profile', label: 'Datos' }]
     if (hasModalities) base.push({ key: 'modality', label: 'Modalidad' })
     if (hasCategories || eventCategories.length > 0) base.push({ key: 'category', label: 'Categoría' })
     base.push({ key: 'confirm', label: 'Confirmar' })
@@ -299,12 +291,10 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
     showWaiverModal,
     setShowWaiverModal,
     handleAcceptWaiver,
-    showProfileForm,
-    profileFormData,
-    setProfileFormData,
-    isSavingProfile,
+    participantFormData,
+    setParticipantFormData,
     profileError,
-    handleSaveProfile,
+    handleNextFromProfile,
     isRegistering,
     registerError,
     handleRegister,

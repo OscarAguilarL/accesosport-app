@@ -22,7 +22,6 @@ import {
   ChevronRight,
   Trophy,
   CheckCircle2,
-  LogIn,
   Ruler,
 } from 'lucide-react'
 
@@ -114,30 +113,6 @@ function RegistrationCTA({
     return (
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-center">
         <p className="text-sm font-medium text-gray-600">Sin lugares disponibles</p>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="space-y-3">
-        {!compact && (
-          <p className="text-center text-sm text-gray-500">
-            Inicia sesión para inscribirte
-          </p>
-        )}
-        <Button
-          asChild
-          size="lg"
-          className="w-full gap-2 bg-[#023765] font-bold text-white hover:bg-[#023765]/85"
-        >
-          <Link href={`/login?redirect=${encodeURIComponent(`/eventos/${eventId}/inscribirse`)}`}>
-            <LogIn className="h-4 w-4" />
-            {compact
-              ? `Iniciar sesión${minPrice !== undefined ? ` · ${formatPrice(minPrice)}` : ''}`
-              : 'Iniciar sesión para inscribirme'}
-          </Link>
-        </Button>
       </div>
     )
   }

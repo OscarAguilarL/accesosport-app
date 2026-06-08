@@ -3,6 +3,7 @@ import type {
   ParticipantInEventResponse,
   PagedResponse,
   RegistrationResponse,
+  RegisterParticipantRequest,
   CheckinTokenResponse,
   CheckinTokenValidationResponse,
 } from '../types'
@@ -11,11 +12,13 @@ export const registrations = {
   getByEvent: (eventId: string, page = 0, size = 20) =>
     fetchApi<PagedResponse<ParticipantInEventResponse>>(`/api/v1/events/${eventId}/registrations?page=${page}&size=${size}`),
 
-  register: (eventId: string, modalityId?: string, categoryId?: string, waiverAccepted?: boolean, wantsShirt?: boolean) =>
-    fetchApi<RegistrationResponse>(`/api/v1/events/${eventId}/register`, {
-      method: 'POST',
-      body: JSON.stringify({ modalityId, categoryId: categoryId ?? null, waiverAccepted: waiverAccepted ?? false, wantsShirt: wantsShirt ?? true }),
-    }),
+  register: (eventId: string, data: RegisterParticipantRequest, authenticated = false) =>
+    fetchApi<RegistrationResponse>(
+      authenticated
+        ? `/api/v1/events/${eventId}/register`
+        : `/api/v1/public/events/${eventId}/register`,
+      { method: 'POST', body: JSON.stringify(data) }
+    ),
 
   cancel: (eventId: string, registrationId: string) =>
     fetchApi<void>(`/api/v1/events/${eventId}/registrations/${registrationId}`, {
