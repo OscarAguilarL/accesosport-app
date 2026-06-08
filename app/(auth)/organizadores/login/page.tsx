@@ -113,13 +113,7 @@ export default function OrganizerLoginPage() {
           <Suspense fallback={<Spinner className="mx-auto" />}>
             <OrganizerLoginForm />
           </Suspense>
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            ¿No tienes una cuenta?{' '}
-            <Link href="/organizadores/registro" className="font-medium text-primary hover:underline">
-              Regístrate como organizador
-            </Link>
-          </div>
-          <div className="mt-3 text-center text-xs text-muted-foreground">
+          <div className="mt-6 text-center text-xs text-muted-foreground">
             <Link href="/" className="hover:underline">
               ← Volver al portal
             </Link>
