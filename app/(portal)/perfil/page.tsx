@@ -18,7 +18,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
-import { Save, UserCircle, User } from 'lucide-react'
+import { Save, UserCircle, User, Lock } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const SHIRT_SIZE_OPTIONS: { value: ShirtSize; label: string }[] = [
   { value: 'SIZE_XS', label: 'XS' },
@@ -178,6 +180,26 @@ export default function PerfilPage() {
     }
   }
 
+  const initials = [user?.firstName, user?.lastName]
+    .filter(Boolean)
+    .map((n) => n![0].toUpperCase())
+    .join('') || '?'
+
+  const fullName = [user?.firstName, user?.lastName, user?.secondLastName]
+    .filter(Boolean).join(' ') || null
+
+  const triggerBase = `
+    justify-start w-full text-left px-3 py-2 rounded-lg
+    data-[state=active]:bg-[#F1F5FD]
+    data-[state=active]:border-l-2
+    data-[state=active]:border-[#2563EB]
+    data-[state=active]:font-semibold
+    data-[state=active]:text-[#0F172A]
+    text-slate-500 hover:bg-muted/50
+    transition-all duration-150
+    whitespace-nowrap
+  `.trim()
+
   if (isLoadingProfile) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -187,257 +209,323 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-4xl px-6 py-8">
 
-      {/* Datos personales */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+      {/* Encabezado de perfil */}
+      <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[#E4ECFC]">
+        <Avatar className="h-12 w-12">
+          <AvatarFallback className="bg-[#2563EB] text-white font-semibold">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <h1 className="text-xl font-semibold text-[#0F172A]">
+            {fullName ?? user?.email}
+          </h1>
+          <p className="text-sm text-muted-foreground">{user?.email}</p>
+        </div>
+      </div>
+
+      {/* Tabs: sidebar + contenido */}
+      <Tabs defaultValue="personal" orientation="vertical" className="flex flex-col md:flex-row gap-6">
+
+        {/* Sidebar (desktop) / Pills (mobile) */}
+        <TabsList className="
+          flex flex-row md:flex-col
+          md:w-56 md:shrink-0 md:sticky md:top-24 md:self-start
+          overflow-x-auto md:overflow-visible
+          bg-white border border-[#E4ECFC] rounded-xl p-2
+          gap-1 h-auto
+        ">
+          <TabsTrigger value="personal" className={triggerBase}>
             Datos personales
-          </CardTitle>
-          <CardDescription>Tu nombre, fecha de nacimiento y contacto</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handlePersonalDataSubmit}>
-            <FieldGroup>
-              {personalDataSuccess && (
-                <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
-                  {personalDataSuccess}
-                </div>
-              )}
-              {personalDataError && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  {personalDataError}
-                </div>
-              )}
+          </TabsTrigger>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="firstName">Nombre *</FieldLabel>
-                  <Input
-                    id="firstName"
-                    value={personalData.firstName}
-                    onChange={(e) => setPersonalData({ ...personalData, firstName: e.target.value })}
-                    required
-                    disabled={isSavingPersonalData}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="lastName">Apellido paterno *</FieldLabel>
-                  <Input
-                    id="lastName"
-                    value={personalData.lastName}
-                    onChange={(e) => setPersonalData({ ...personalData, lastName: e.target.value })}
-                    required
-                    disabled={isSavingPersonalData}
-                  />
-                </Field>
-              </div>
-
-              <Field>
-                <FieldLabel htmlFor="secondLastName">Apellido materno</FieldLabel>
-                <Input
-                  id="secondLastName"
-                  value={personalData.secondLastName}
-                  onChange={(e) => setPersonalData({ ...personalData, secondLastName: e.target.value })}
-                  disabled={isSavingPersonalData}
-                />
-              </Field>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="birthDate">Fecha de nacimiento *</FieldLabel>
-                  <Input
-                    id="birthDate"
-                    type="date"
-                    value={personalData.birthDate}
-                    onChange={(e) => setPersonalData({ ...personalData, birthDate: e.target.value })}
-                    required
-                    disabled={isSavingPersonalData}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="pdGender">Género *</FieldLabel>
-                  <Select
-                    value={personalData.gender}
-                    onValueChange={(value) => setPersonalData({ ...personalData, gender: value })}
-                    disabled={isSavingPersonalData}
-                  >
-                    <SelectTrigger id="pdGender">
-                      <SelectValue placeholder="Selecciona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GENDER_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
-              <Field>
-                <FieldLabel htmlFor="phoneNumber">Teléfono *</FieldLabel>
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  placeholder="10 a 15 dígitos"
-                  value={personalData.phoneNumber}
-                  onChange={(e) => setPersonalData({ ...personalData, phoneNumber: e.target.value })}
-                  required
-                  minLength={10}
-                  maxLength={15}
-                  disabled={isSavingPersonalData}
-                />
-              </Field>
-
-              <Button type="submit" disabled={isSavingPersonalData}>
-                {isSavingPersonalData ? (
-                  <><Spinner className="mr-2" /> Guardando...</>
-                ) : (
-                  <><Save className="mr-2 h-4 w-4" /> Guardar datos personales</>
-                )}
-              </Button>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Perfil de corredor */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCircle className="h-5 w-5" />
+          <TabsTrigger value="corredor" className={triggerBase}>
             Perfil de corredor
-          </CardTitle>
-          <CardDescription>
-            Esta información es necesaria para inscribirte a una carrera
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleProfileSubmit}>
-            <FieldGroup>
-              {profileSuccess && (
-                <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
-                  {profileSuccess}
-                </div>
-              )}
-              {profileError && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  {profileError}
-                </div>
-              )}
+          </TabsTrigger>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="shirtSize">Talla de playera *</FieldLabel>
-                  <Select
-                    value={profileForm.shirtSize}
-                    onValueChange={(value) =>
-                      setProfileForm({ ...profileForm, shirtSize: value as ShirtSize })
-                    }
-                    required
-                    disabled={isSavingProfile}
-                  >
-                    <SelectTrigger id="shirtSize">
-                      <SelectValue placeholder="Selecciona tu talla" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SHIRT_SIZE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+          <TabsTrigger
+            value="seguridad"
+            disabled
+            className={`${triggerBase} opacity-40 cursor-not-allowed flex items-center`}
+          >
+            <Lock className="h-3 w-3 mr-2 shrink-0" />
+            Seguridad
+            <span className="ml-auto text-xs bg-slate-100 text-slate-500 rounded px-1.5 py-0.5 hidden md:inline">
+              Próx.
+            </span>
+          </TabsTrigger>
+        </TabsList>
 
-                <Field>
-                  <FieldLabel htmlFor="bloodType">Tipo de sangre *</FieldLabel>
-                  <Select
-                    value={profileForm.bloodType}
-                    onValueChange={(value) =>
-                      setProfileForm({ ...profileForm, bloodType: value as BloodType })
-                    }
-                    required
-                    disabled={isSavingProfile}
-                  >
-                    <SelectTrigger id="bloodType">
-                      <SelectValue placeholder="Selecciona tu tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BLOOD_TYPE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
+        {/* Panel de contenido */}
+        <div className="flex-1 min-w-0">
 
-              <Field>
-                <FieldLabel htmlFor="medicalConditions">Condiciones médicas</FieldLabel>
-                <Textarea
-                  id="medicalConditions"
-                  value={profileForm.medicalConditions}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, medicalConditions: e.target.value })
-                  }
-                  placeholder="Alergias, enfermedades, medicamentos actuales... (opcional)"
-                  rows={3}
-                  maxLength={500}
-                  disabled={isSavingProfile}
-                />
-              </Field>
+          {/* Datos personales */}
+          <TabsContent value="personal">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Datos personales
+                </CardTitle>
+                <CardDescription>Tu nombre, fecha de nacimiento y contacto</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handlePersonalDataSubmit}>
+                  <FieldGroup>
+                    {personalDataSuccess && (
+                      <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+                        {personalDataSuccess}
+                      </div>
+                    )}
+                    {personalDataError && (
+                      <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                        {personalDataError}
+                      </div>
+                    )}
 
-              <Field>
-                <FieldLabel htmlFor="emergencyContactName">
-                  Nombre del contacto de emergencia *
-                </FieldLabel>
-                <Input
-                  id="emergencyContactName"
-                  value={profileForm.emergencyContactName}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, emergencyContactName: e.target.value })
-                  }
-                  placeholder="Nombre completo"
-                  required
-                  disabled={isSavingProfile}
-                />
-              </Field>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field>
+                        <FieldLabel htmlFor="firstName">Nombre *</FieldLabel>
+                        <Input
+                          id="firstName"
+                          value={personalData.firstName}
+                          onChange={(e) => setPersonalData({ ...personalData, firstName: e.target.value })}
+                          required
+                          disabled={isSavingPersonalData}
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="lastName">Apellido paterno *</FieldLabel>
+                        <Input
+                          id="lastName"
+                          value={personalData.lastName}
+                          onChange={(e) => setPersonalData({ ...personalData, lastName: e.target.value })}
+                          required
+                          disabled={isSavingPersonalData}
+                        />
+                      </Field>
+                    </div>
 
-              <Field>
-                <FieldLabel htmlFor="emergencyContactPhone">
-                  Teléfono del contacto de emergencia *
-                </FieldLabel>
-                <Input
-                  id="emergencyContactPhone"
-                  type="tel"
-                  value={profileForm.emergencyContactPhone}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, emergencyContactPhone: e.target.value })
-                  }
-                  placeholder="10 dígitos"
-                  required
-                  disabled={isSavingProfile}
-                />
-              </Field>
+                    <Field>
+                      <FieldLabel htmlFor="secondLastName">Apellido materno</FieldLabel>
+                      <Input
+                        id="secondLastName"
+                        value={personalData.secondLastName}
+                        onChange={(e) => setPersonalData({ ...personalData, secondLastName: e.target.value })}
+                        disabled={isSavingPersonalData}
+                      />
+                    </Field>
 
-              <Button type="submit" disabled={isSavingProfile}>
-                {isSavingProfile ? (
-                  <><Spinner className="mr-2" /> Guardando...</>
-                ) : (
-                  <><Save className="mr-2 h-4 w-4" /> Guardar perfil de corredor</>
-                )}
-              </Button>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field>
+                        <FieldLabel htmlFor="birthDate">Fecha de nacimiento *</FieldLabel>
+                        <Input
+                          id="birthDate"
+                          type="date"
+                          value={personalData.birthDate}
+                          onChange={(e) => setPersonalData({ ...personalData, birthDate: e.target.value })}
+                          required
+                          disabled={isSavingPersonalData}
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="pdGender">Género *</FieldLabel>
+                        <Select
+                          value={personalData.gender}
+                          onValueChange={(value) => setPersonalData({ ...personalData, gender: value })}
+                          disabled={isSavingPersonalData}
+                        >
+                          <SelectTrigger id="pdGender">
+                            <SelectValue placeholder="Selecciona" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {GENDER_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
 
+                    <Field>
+                      <FieldLabel htmlFor="phoneNumber">Teléfono *</FieldLabel>
+                      <Input
+                        id="phoneNumber"
+                        type="tel"
+                        placeholder="10 a 15 dígitos"
+                        value={personalData.phoneNumber}
+                        onChange={(e) => setPersonalData({ ...personalData, phoneNumber: e.target.value })}
+                        required
+                        minLength={10}
+                        maxLength={15}
+                        disabled={isSavingPersonalData}
+                      />
+                    </Field>
+
+                    <Button type="submit" disabled={isSavingPersonalData}>
+                      {isSavingPersonalData ? (
+                        <><Spinner className="mr-2" /> Guardando...</>
+                      ) : (
+                        <><Save className="mr-2 h-4 w-4" /> Guardar datos personales</>
+                      )}
+                    </Button>
+                  </FieldGroup>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Perfil de corredor */}
+          <TabsContent value="corredor">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCircle className="h-5 w-5" />
+                  Perfil de corredor
+                </CardTitle>
+                <CardDescription>
+                  Esta información es necesaria para inscribirte a una carrera
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleProfileSubmit}>
+                  <FieldGroup>
+                    {profileSuccess && (
+                      <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+                        {profileSuccess}
+                      </div>
+                    )}
+                    {profileError && (
+                      <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                        {profileError}
+                      </div>
+                    )}
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field>
+                        <FieldLabel htmlFor="shirtSize">Talla de playera *</FieldLabel>
+                        <Select
+                          value={profileForm.shirtSize}
+                          onValueChange={(value) =>
+                            setProfileForm({ ...profileForm, shirtSize: value as ShirtSize })
+                          }
+                          required
+                          disabled={isSavingProfile}
+                        >
+                          <SelectTrigger id="shirtSize">
+                            <SelectValue placeholder="Selecciona tu talla" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SHIRT_SIZE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+
+                      <Field>
+                        <FieldLabel htmlFor="bloodType">Tipo de sangre *</FieldLabel>
+                        <Select
+                          value={profileForm.bloodType}
+                          onValueChange={(value) =>
+                            setProfileForm({ ...profileForm, bloodType: value as BloodType })
+                          }
+                          required
+                          disabled={isSavingProfile}
+                        >
+                          <SelectTrigger id="bloodType">
+                            <SelectValue placeholder="Selecciona tu tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BLOOD_TYPE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+
+                    <Field>
+                      <FieldLabel htmlFor="medicalConditions">Condiciones médicas</FieldLabel>
+                      <Textarea
+                        id="medicalConditions"
+                        value={profileForm.medicalConditions}
+                        onChange={(e) =>
+                          setProfileForm({ ...profileForm, medicalConditions: e.target.value })
+                        }
+                        placeholder="Alergias, enfermedades, medicamentos actuales... (opcional)"
+                        rows={3}
+                        maxLength={500}
+                        disabled={isSavingProfile}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="emergencyContactName">
+                        Nombre del contacto de emergencia *
+                      </FieldLabel>
+                      <Input
+                        id="emergencyContactName"
+                        value={profileForm.emergencyContactName}
+                        onChange={(e) =>
+                          setProfileForm({ ...profileForm, emergencyContactName: e.target.value })
+                        }
+                        placeholder="Nombre completo"
+                        required
+                        disabled={isSavingProfile}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="emergencyContactPhone">
+                        Teléfono del contacto de emergencia *
+                      </FieldLabel>
+                      <Input
+                        id="emergencyContactPhone"
+                        type="tel"
+                        value={profileForm.emergencyContactPhone}
+                        onChange={(e) =>
+                          setProfileForm({ ...profileForm, emergencyContactPhone: e.target.value })
+                        }
+                        placeholder="10 dígitos"
+                        required
+                        disabled={isSavingProfile}
+                      />
+                    </Field>
+
+                    <Button type="submit" disabled={isSavingProfile}>
+                      {isSavingProfile ? (
+                        <><Spinner className="mr-2" /> Guardando...</>
+                      ) : (
+                        <><Save className="mr-2 h-4 w-4" /> Guardar perfil de corredor</>
+                      )}
+                    </Button>
+                  </FieldGroup>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Seguridad (próximamente) */}
+          <TabsContent value="seguridad">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cambio de contraseña</CardTitle>
+                <CardDescription>Esta función estará disponible próximamente.</CardDescription>
+              </CardHeader>
+            </Card>
+          </TabsContent>
+
+        </div>
+      </Tabs>
     </div>
   )
 }
