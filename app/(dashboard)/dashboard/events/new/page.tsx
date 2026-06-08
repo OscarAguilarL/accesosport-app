@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { events as eventsApi, categories as categoriesApi, ApiError } from '@/lib/api'
-import type { CreateEventRequest, CreateModalityRequest, CreateCategoryRequest, EventModalityResponse } from '@/lib/types'
+import type { CreateEventRequest, UpdateEventRequest, CreateModalityRequest, CreateCategoryRequest, EventModalityResponse } from '@/lib/types'
 import { ArrowLeft, Calendar, MapPin, Users, Activity, ImageIcon, Plus, Trash2, Tag } from 'lucide-react'
 import { ImageDropzone } from '@/components/ui/image-dropzone'
 import { DateTimePicker } from '@/components/ui/datetime-picker'
@@ -102,6 +102,21 @@ export default function CreateEventPage() {
     setIsLoading(true)
     setError(null)
     try {
+      if (createdEventId) {
+        const updatePayload: UpdateEventRequest = {
+          name: basicInfo.name,
+          description: basicInfo.description || undefined,
+          eventDate: location.eventDate,
+          place: location.place,
+          city: location.city || undefined,
+          country: location.country || undefined,
+          registrationStartDate: registration.registrationStartDate,
+          registrationEndDate: registration.registrationEndDate,
+        }
+        await eventsApi.update(createdEventId, updatePayload)
+        setStep(4)
+        return
+      }
       const payload: CreateEventRequest = {
         name: basicInfo.name,
         description: basicInfo.description || undefined,
@@ -326,26 +341,24 @@ export default function CreateEventPage() {
               </CardHeader>
               <CardContent>
                 <FieldGroup>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel>Inicio de Inscripciones *</FieldLabel>
-                      <DateTimePicker
-                        value={registration.registrationStartDate}
-                        onChange={v => setRegistration(p => ({ ...p, registrationStartDate: v }))}
-                        placeholder="Seleccionar fecha de apertura"
-                        required
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel>Fin de Inscripciones *</FieldLabel>
-                      <DateTimePicker
-                        value={registration.registrationEndDate}
-                        onChange={v => setRegistration(p => ({ ...p, registrationEndDate: v }))}
-                        placeholder="Seleccionar fecha de cierre"
-                        required
-                      />
-                    </Field>
-                  </div>
+                  <Field>
+                    <FieldLabel>Inicio de Inscripciones *</FieldLabel>
+                    <DateTimePicker
+                      value={registration.registrationStartDate}
+                      onChange={v => setRegistration(p => ({ ...p, registrationStartDate: v }))}
+                      placeholder="Seleccionar fecha de apertura"
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Fin de Inscripciones *</FieldLabel>
+                    <DateTimePicker
+                      value={registration.registrationEndDate}
+                      onChange={v => setRegistration(p => ({ ...p, registrationEndDate: v }))}
+                      placeholder="Seleccionar fecha de cierre"
+                      required
+                    />
+                  </Field>
                   <Field>
                     <FieldLabel htmlFor="maxCapacity">
                       <Users className="mr-2 inline h-4 w-4" />
