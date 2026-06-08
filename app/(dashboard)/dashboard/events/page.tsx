@@ -44,8 +44,7 @@ import {
   MapPin,
   Users,
 } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatDate } from '@/lib/domain/formatting'
 
 export default function EventsPage() {
   const [events, setEvents] = useState<EventSummaryResponse[]>([])
@@ -201,9 +200,7 @@ export default function EventsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Calendar className="h-4 w-4" />
-                          {event.eventDate
-                            ? format(new Date(event.eventDate), "d MMM yyyy", { locale: es })
-                            : '-'}
+                          {event.eventDate ? formatDate(event.eventDate) : '-'}
                         </div>
                       </TableCell>
                       <TableCell>

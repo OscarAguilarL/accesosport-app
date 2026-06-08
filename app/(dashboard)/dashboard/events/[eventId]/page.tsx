@@ -63,8 +63,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatDate, formatDateTime, formatDateLong } from '@/lib/domain/formatting'
 
 const PARTICIPANTS_STATUSES = new Set(['REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'IN_PROGRESS', 'COMPLETED'])
 
@@ -300,7 +299,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
             {event.eventDate && (
               <span className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                {format(new Date(event.eventDate), "d 'de' MMMM 'de' yyyy", { locale: es })}
+                {formatDateLong(event.eventDate)}
               </span>
             )}
             {event.location?.city && (
@@ -334,13 +333,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Fecha del evento</p>
                     <p className="text-foreground">
-                      {event.eventDate
-                        ? format(new Date(event.eventDate), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
-                        : '-'}
+                      {event.eventDate ? formatDateLong(event.eventDate) : '-'}
                     </p>
                     {event.eventDate && (
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(event.eventDate), 'HH:mm', { locale: es })} hrs
+                        {new Date(event.eventDate).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })} hrs
                       </p>
                     )}
                   </div>
@@ -373,9 +370,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <div>
                     <p className="text-sm text-muted-foreground">Inicio</p>
                     <p className="font-medium">
-                      {event.registrationPeriod?.start
-                        ? format(new Date(event.registrationPeriod.start), "d MMM yyyy, HH:mm", { locale: es })
-                        : '-'}
+                      {event.registrationPeriod?.start ? formatDateTime(event.registrationPeriod.start) : '-'}
                     </p>
                   </div>
                 </div>
@@ -385,9 +380,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <div>
                     <p className="text-sm text-muted-foreground">Fin</p>
                     <p className="font-medium">
-                      {event.registrationPeriod?.end
-                        ? format(new Date(event.registrationPeriod.end), "d MMM yyyy, HH:mm", { locale: es })
-                        : '-'}
+                      {event.registrationPeriod?.end ? formatDateTime(event.registrationPeriod.end) : '-'}
                     </p>
                   </div>
                 </div>
@@ -585,9 +578,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Creado</span>
                 <span>
-                  {event.createdAt
-                    ? format(new Date(event.createdAt), 'd MMM yyyy', { locale: es })
-                    : '-'}
+                  {event.createdAt ? formatDate(event.createdAt) : '-'}
                 </span>
               </div>
             </CardContent>
@@ -678,7 +669,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                           </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {format(new Date(p.registeredAt), "d MMM yyyy, HH:mm", { locale: es })}
+                          {formatDateTime(p.registeredAt)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -731,8 +722,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   {checkinUrl(qrTokenData.token)}
                 </p>
                 <p className="text-muted-foreground">
-                  Expira el{' '}
-                  {format(new Date(qrTokenData.expiresAt), "d MMM yyyy 'a las' HH:mm", { locale: es })}
+                  Expira el {formatDateTime(qrTokenData.expiresAt)}
                 </p>
               </div>
               <Button className="w-full" variant="outline" onClick={handleCopyLink}>

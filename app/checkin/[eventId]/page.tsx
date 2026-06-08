@@ -16,8 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { useCheckin } from '@/lib/hooks/useCheckin'
 import { CheckCircle2, Package, QrCode, Search, XCircle, AlertTriangle } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatDateTime } from '@/lib/domain/formatting'
 
 const SHIRT_SIZE_LABELS: Record<string, string> = {
   SIZE_XS: 'XS',
@@ -301,8 +300,7 @@ export default function PublicCheckinPage({ params }: { params: Promise<{ eventI
                   </div>
                   {participant.kitPickedUp && participant.kitPickedUpAt && (
                     <p className="text-xs text-muted-foreground">
-                      Entregado el{' '}
-                      {format(new Date(participant.kitPickedUpAt), "d MMM yyyy 'a las' HH:mm", { locale: es })}
+                      Entregado el {formatDateTime(participant.kitPickedUpAt)}
                     </p>
                   )}
                   <Button

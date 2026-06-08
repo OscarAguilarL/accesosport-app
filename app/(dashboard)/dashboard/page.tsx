@@ -8,10 +8,8 @@ import { Button } from '@/components/ui/button'
 import type { EventSummaryResponse } from '@/lib/types'
 import { EVENT_STATUS_LABELS } from '@/lib/types'
 import { useDashboardStats } from '@/lib/hooks/useDashboardStats'
-import { formatPrice } from '@/lib/domain/formatting'
+import { formatPrice, formatDate } from '@/lib/domain/formatting'
 import { Calendar, Users, TrendingUp, PlusCircle, ArrowRight, Clock, LayoutGrid } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { Spinner } from '@/components/ui/spinner'
 
 function StatCard({
@@ -143,7 +141,7 @@ export default function DashboardPage() {
                             {event.location && <span className="truncate">{event.location}</span>}
                             {event.eventDate && (
                               <span className="shrink-0">
-                                {format(new Date(event.eventDate), "d MMM yyyy", { locale: es })}
+                                {formatDate(event.eventDate)}
                               </span>
                             )}
                           </div>

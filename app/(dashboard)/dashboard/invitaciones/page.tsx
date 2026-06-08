@@ -16,8 +16,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { ApiError } from '@/lib/api'
 import type { InvitationResponse, InvitationStatus, CreateInvitationRequest } from '@/lib/types'
 import { INVITATION_STATUS_LABELS } from '@/lib/types'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatDate } from '@/lib/domain/formatting'
 import { Copy, Trash2, Plus, Mail } from 'lucide-react'
 
 const STATUS_VARIANT: Record<InvitationStatus, 'default' | 'secondary' | 'destructive'> = {
@@ -92,11 +91,6 @@ export default function InvitacionesPage() {
     })
   }
 
-  const formatDate = (iso?: string) => {
-    if (!iso) return '—'
-    return format(new Date(iso), 'dd MMM yyyy', { locale: es })
-  }
-
   if (isAuthLoading || (isLoading && items.length === 0)) {
     return (
       <DashboardLayout title="Invitaciones">
@@ -159,7 +153,7 @@ export default function InvitacionesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {formatDate(inv.createdAt)}
+                        {inv.createdAt ? formatDate(inv.createdAt) : '—'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
