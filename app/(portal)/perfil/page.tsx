@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { profile as profileApi, user as userApi, ApiError } from '@/lib/api'
+import { profile as profileApi, user as userApi, auth as authApi, ApiError } from '@/lib/api'
 import type {
   CreateParticipantProfileRequest,
   SavePersonalDataRequest,
@@ -14,6 +14,7 @@ import type {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -76,6 +77,17 @@ export default function PerfilPage() {
   const [isSavingPersonalData, setIsSavingPersonalData] = useState(false)
   const [personalDataSuccess, setPersonalDataSuccess] = useState<string | null>(null)
   const [personalDataError, setPersonalDataError] = useState<string | null>(null)
+
+  // Change password section
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
 
   // Participant profile section
   const [profileForm, setProfileForm] = useState<CreateParticipantProfileRequest>(EMPTY_PROFILE)
@@ -153,6 +165,41 @@ export default function PerfilPage() {
       )
     } finally {
       setIsSavingPersonalData(false)
+    }
+  }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setCurrentPasswordError(null)
+    setPasswordSuccess(false)
+
+    if (!passwordData.currentPassword) {
+      setCurrentPasswordError('Ingresa tu contraseña actual.')
+      return
+    }
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('La nueva contraseña debe tener al menos 8 caracteres.')
+      return
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('La nueva contraseña y la confirmación no coinciden.')
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      await authApi.changePassword(passwordData.currentPassword, passwordData.newPassword)
+      setPasswordSuccess(true)
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400) {
+        setCurrentPasswordError(err.detail || 'La contraseña actual no es correcta.')
+      } else {
+        setPasswordError('Ocurrió un error al cambiar la contraseña.')
+      }
+    } finally {
+      setIsChangingPassword(false)
     }
   }
 
@@ -245,16 +292,9 @@ export default function PerfilPage() {
             Perfil de corredor
           </TabsTrigger>
 
-          <TabsTrigger
-            value="seguridad"
-            disabled
-            className={`${triggerBase} opacity-40 cursor-not-allowed flex items-center`}
-          >
+          <TabsTrigger value="seguridad" className={`${triggerBase} flex items-center`}>
             <Lock className="h-3 w-3 mr-2 shrink-0" />
             Seguridad
-            <span className="ml-auto text-xs bg-slate-100 text-slate-500 rounded px-1.5 py-0.5 hidden md:inline">
-              Próx.
-            </span>
           </TabsTrigger>
         </TabsList>
 
@@ -514,13 +554,82 @@ export default function PerfilPage() {
             </Card>
           </TabsContent>
 
-          {/* Seguridad (próximamente) */}
+          {/* Seguridad */}
           <TabsContent value="seguridad">
             <Card>
               <CardHeader>
-                <CardTitle>Cambio de contraseña</CardTitle>
-                <CardDescription>Esta función estará disponible próximamente.</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Seguridad
+                </CardTitle>
+                <CardDescription>Cambia tu contraseña de acceso</CardDescription>
               </CardHeader>
+              <CardContent>
+                <form onSubmit={handleChangePassword}>
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="portalCurrentPassword">Contraseña actual</FieldLabel>
+                      <PasswordInput
+                        id="portalCurrentPassword"
+                        value={passwordData.currentPassword}
+                        onChange={(e) =>
+                          setPasswordData({ ...passwordData, currentPassword: e.target.value })
+                        }
+                        autoComplete="current-password"
+                        disabled={isChangingPassword}
+                      />
+                      {currentPasswordError && (
+                        <p className="text-sm text-destructive">{currentPasswordError}</p>
+                      )}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="portalNewPassword">Nueva contraseña</FieldLabel>
+                      <PasswordInput
+                        id="portalNewPassword"
+                        value={passwordData.newPassword}
+                        onChange={(e) =>
+                          setPasswordData({ ...passwordData, newPassword: e.target.value })
+                        }
+                        autoComplete="new-password"
+                        disabled={isChangingPassword}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="portalConfirmPassword">Confirmar nueva contraseña</FieldLabel>
+                      <PasswordInput
+                        id="portalConfirmPassword"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) =>
+                          setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                        }
+                        autoComplete="new-password"
+                        disabled={isChangingPassword}
+                      />
+                    </Field>
+
+                    {passwordError && (
+                      <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                        {passwordError}
+                      </div>
+                    )}
+                    {passwordSuccess && (
+                      <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+                        Contraseña actualizada correctamente.
+                      </div>
+                    )}
+
+                    <Button type="submit" disabled={isChangingPassword}>
+                      {isChangingPassword ? (
+                        <><Spinner className="mr-2" /> Cambiando...</>
+                      ) : (
+                        <><Lock className="mr-2 h-4 w-4" /> Cambiar contraseña</>
+                      )}
+                    </Button>
+                  </FieldGroup>
+                </form>
+              </CardContent>
             </Card>
           </TabsContent>
 

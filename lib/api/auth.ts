@@ -25,4 +25,10 @@ export const auth = {
       method: 'POST',
       body: JSON.stringify({ token, newPassword }),
     }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    fetchApi<void>('/api/v1/auth/change-password', {
+      method: 'PATCH',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 }

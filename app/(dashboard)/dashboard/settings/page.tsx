@@ -10,9 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageDropzone } from '@/components/ui/image-dropzone'
-import { profile as profileApi, ApiError } from '@/lib/api'
+import { profile as profileApi, auth as authApi, ApiError } from '@/lib/api'
+import { PasswordInput } from '@/components/ui/password-input'
 import type { OrganizerProfileResponse } from '@/lib/types'
-import { Building2, Globe, Instagram, Facebook, Save } from 'lucide-react'
+import { Building2, Globe, Instagram, Facebook, Save, Lock } from 'lucide-react'
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -21,6 +22,15 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const [logoError, setLogoError] = useState<string | null>(null)
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [formData, setFormData] = useState({
     organizationName: '',
     website: '',
@@ -60,6 +70,41 @@ export default function SettingsPage() {
       console.log('[v0] Error saving profile:', error)
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setCurrentPasswordError(null)
+    setPasswordSuccess(false)
+
+    if (!passwordData.currentPassword) {
+      setCurrentPasswordError('Ingresa tu contraseña actual.')
+      return
+    }
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('La nueva contraseña debe tener al menos 8 caracteres.')
+      return
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('La nueva contraseña y la confirmación no coinciden.')
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      await authApi.changePassword(passwordData.currentPassword, passwordData.newPassword)
+      setPasswordSuccess(true)
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400) {
+        setCurrentPasswordError(err.detail || 'La contraseña actual no es correcta.')
+      } else {
+        setPasswordError('Ocurrió un error al cambiar la contraseña.')
+      }
+    } finally {
+      setIsChangingPassword(false)
     }
   }
 
@@ -250,6 +295,81 @@ export default function SettingsPage() {
               </form>
               </div>
             )}
+          </CardContent>
+        </Card>
+        {/* Security */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Seguridad
+            </CardTitle>
+            <CardDescription>Cambia tu contraseña de acceso</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleChangePassword}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="currentPassword">Contraseña actual</FieldLabel>
+                  <PasswordInput
+                    id="currentPassword"
+                    value={passwordData.currentPassword}
+                    onChange={(e) =>
+                      setPasswordData({ ...passwordData, currentPassword: e.target.value })
+                    }
+                    autoComplete="current-password"
+                  />
+                  {currentPasswordError && (
+                    <p className="text-sm text-destructive">{currentPasswordError}</p>
+                  )}
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="newPassword">Nueva contraseña</FieldLabel>
+                  <PasswordInput
+                    id="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={(e) =>
+                      setPasswordData({ ...passwordData, newPassword: e.target.value })
+                    }
+                    autoComplete="new-password"
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="confirmPassword">Confirmar nueva contraseña</FieldLabel>
+                  <PasswordInput
+                    id="confirmPassword"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) =>
+                      setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                    }
+                    autoComplete="new-password"
+                  />
+                </Field>
+
+                {passwordError && (
+                  <p className="text-sm text-destructive">{passwordError}</p>
+                )}
+                {passwordSuccess && (
+                  <p className="text-sm text-green-600">Contraseña actualizada correctamente.</p>
+                )}
+
+                <Button type="submit" disabled={isChangingPassword}>
+                  {isChangingPassword ? (
+                    <>
+                      <Spinner className="mr-2" />
+                      Cambiando...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="mr-2 h-4 w-4" />
+                      Cambiar contraseña
+                    </>
+                  )}
+                </Button>
+              </FieldGroup>
+            </form>
           </CardContent>
         </Card>
       </div>
