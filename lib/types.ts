@@ -137,8 +137,35 @@ export interface OrganizerProfileResponse {
   description?: string
   verificationStatus?: string
   verifiedAt?: string
+  stripeAccountId?: string | null
+  stripeOnboardingCompleted?: boolean
   createdAt?: string
   updatedAt?: string
+}
+
+export interface CheckoutSessionResponse {
+  sessionId: string
+  checkoutUrl: string
+}
+
+export type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'REFUNDED' | 'FAILED'
+
+export interface PaymentStatusResponse {
+  paymentStatus: PaymentStatus
+  paymentMethod: 'CARD' | 'OXXO' | null
+  amountTotal: number
+  baseAmount: number
+  serviceFee: number
+}
+
+export interface ConnectOnboardingResponse {
+  onboardingUrl: string
+}
+
+export interface ConnectStatusResponse {
+  stripeAccountId: string | null
+  onboardingCompleted: boolean
+  chargesEnabled: boolean
 }
 
 export interface OrganizerProfileWithTokenResponse {

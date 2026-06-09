@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../auth-context'
 import type {
   EventResponse,
+  RegistrationResponse,
   ShirtSize,
   BloodType,
   EventModalityResponse,
@@ -85,7 +86,7 @@ export interface UseRegistrationFlowResult {
 
   isRegistering: boolean
   registerError: string | null
-  handleRegister: () => Promise<void>
+  handleRegister: () => Promise<RegistrationResponse | null>
 
   isPageLoading: boolean
 }
@@ -192,7 +193,7 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
     setStep(relevant.length > 0 ? 'category' : 'confirm')
   }
 
-  const handleRegister = async () => {
+  const handleRegister = async (): Promise<RegistrationResponse | null> => {
     setIsRegistering(true)
     setRegisterError(null)
     try {
@@ -212,8 +213,12 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
         medicalConditions: participantFormData.medicalConditions || undefined,
       }
       const reg = await registrationsApi.register(eventId, payload, isAuthenticated)
+      if (reg.status === 'PENDING_PAYMENT') {
+        return reg
+      }
       setTicketCode(reg.ticketCode)
       setStep('success')
+      return reg
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
@@ -228,6 +233,7 @@ export function useRegistrationFlow(eventId: string): UseRegistrationFlowResult 
       } else {
         setRegisterError('Error al procesar la inscripción. Intenta de nuevo.')
       }
+      return null
     } finally {
       setIsRegistering(false)
     }
