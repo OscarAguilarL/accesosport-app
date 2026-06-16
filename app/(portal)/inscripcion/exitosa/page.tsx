@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { payments as paymentsApi } from '@/lib/api'
+import { clearPaymentAccessToken, getPaymentAccessToken } from '@/lib/api/payments'
 import type { PaymentStatusResponse } from '@/lib/types'
 
 const POLL_INTERVAL_MS = 2500
@@ -27,8 +28,13 @@ export default function InscripcionExitosaPage() {
 
     const poll = async () => {
       try {
-        const status = await paymentsApi.getPaymentStatus(registrationId)
+        const accessToken = getPaymentAccessToken(registrationId)
+        const status = await paymentsApi.getPaymentStatus(registrationId, accessToken)
         setPaymentStatus(status)
+
+        if (status.paymentStatus === 'CONFIRMED') {
+          clearPaymentAccessToken(registrationId)
+        }
 
         if (status.paymentStatus === 'PENDING') {
           pollCount.current += 1

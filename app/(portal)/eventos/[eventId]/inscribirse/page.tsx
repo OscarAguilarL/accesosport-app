@@ -7,7 +7,7 @@ import type { ShirtSize, BloodType } from '@/lib/types'
 import { useRegistrationFlow } from '@/lib/hooks/useRegistrationFlow'
 import { formatPrice, formatDateLong } from '@/lib/domain/formatting'
 import { calculateServiceFee } from '@/lib/domain/registrations'
-import { payments as paymentsApi } from '@/lib/api'
+import { payments as paymentsApi, savePaymentAccessToken, getPaymentAccessToken } from '@/lib/api/payments'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -87,11 +87,18 @@ export default function InscribirsePage() {
     if (!reg || reg.status !== 'PENDING_PAYMENT') return
     setIsRedirectingToStripe(true)
     try {
-      const origin = window.location.origin
-      const successUrl = `${origin}/inscripcion/exitosa?registration_id=${reg.id}`
-      const cancelUrl = `${origin}/eventos/${eventId}`
-      const { checkoutUrl } = await paymentsApi.createCheckoutSession(reg.id, successUrl, cancelUrl)
-      window.location.href = checkoutUrl
+      if (reg.paymentAccessToken) {
+        savePaymentAccessToken(reg.id, reg.paymentAccessToken)
+      }
+      const accessToken = getPaymentAccessToken(reg.id)
+      const { checkoutUrl, paymentAlreadyCompleted } = await paymentsApi.createCheckoutSession(reg.id, accessToken)
+      if (paymentAlreadyCompleted) {
+        window.location.href = `/inscripcion/exitosa?registration_id=${reg.id}`
+        return
+      }
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl
+      }
     } catch {
       setCheckoutError('No se pudo iniciar el pago. Intenta de nuevo.')
       setIsRedirectingToStripe(false)

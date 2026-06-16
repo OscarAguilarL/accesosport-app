@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { useAuth } from '@/lib/auth-context'
@@ -18,7 +18,7 @@ import { Globe, Instagram, Facebook, Save, Lock, CreditCard, CheckCircle2, Exter
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   const { user } = useAuth()
   const searchParams = useSearchParams()
   const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfileResponse | null>(null)
@@ -85,6 +85,24 @@ export default function SettingsPage() {
     fetchConnectStatus()
   }, [])
 
+  useEffect(() => {
+    if (searchParams.get('stripe') !== 'refresh') return
+
+    const refreshOnboarding = async () => {
+      setIsStartingOnboarding(true)
+      setConnectError(null)
+      try {
+        const { onboardingUrl } = await paymentsApi.startOnboarding()
+        window.location.href = onboardingUrl
+      } catch {
+        setConnectError('No se pudo renovar el enlace de verificación. Intenta de nuevo.')
+        setIsStartingOnboarding(false)
+      }
+    }
+
+    refreshOnboarding()
+  }, [searchParams])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
@@ -150,10 +168,7 @@ export default function SettingsPage() {
     setIsStartingOnboarding(true)
     setConnectError(null)
     try {
-      const origin = window.location.origin
-      const returnUrl = `${origin}/dashboard/settings?tab=pagos`
-      const refreshUrl = `${origin}/dashboard/settings?tab=pagos`
-      const { onboardingUrl } = await paymentsApi.startOnboarding(returnUrl, refreshUrl)
+      const { onboardingUrl } = await paymentsApi.startOnboarding()
       window.location.href = onboardingUrl
     } catch {
       setConnectError('No se pudo iniciar el proceso. Intenta de nuevo.')
@@ -412,7 +427,7 @@ export default function SettingsPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {connectStatus?.chargesEnabled ? (
+                      {connectStatus?.status === 'READY' ? (
                         <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
                           <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
                           <div>
@@ -422,10 +437,27 @@ export default function SettingsPage() {
                             </p>
                           </div>
                         </div>
+                      ) : connectStatus?.status === 'STRIPE_REVIEW' ? (
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-2">
+                          <p className="text-sm font-medium text-blue-800">Revisión de Stripe</p>
+                          <p className="text-sm text-blue-700">
+                            Stripe está revisando la información enviada. No necesitas hacer nada por ahora.
+                          </p>
+                        </div>
+                      ) : connectStatus?.status === 'PAYOUTS_RESTRICTED' ? (
+                        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 space-y-3">
+                          <p className="text-sm font-medium text-orange-800">Payouts restringidos</p>
+                          <p className="text-sm text-orange-700">
+                            La cuenta existe, pero transferencias o retiros aún no están activos.
+                          </p>
+                          <Button onClick={handleStartOnboarding} disabled={isStartingOnboarding} size="sm">
+                            {isStartingOnboarding ? <><Spinner className="mr-2 h-4 w-4" />Redirigiendo...</> : 'Revisar en Stripe'}
+                          </Button>
+                        </div>
                       ) : connectStatus?.stripeAccountId ? (
                         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 space-y-3">
                           <p className="text-sm font-medium text-yellow-800">
-                            Onboarding pendiente
+                            Verificación pendiente
                           </p>
                           <p className="text-sm text-yellow-700">
                             Tu cuenta de Stripe está creada pero necesitas completar el proceso de verificación para empezar a cobrar.
@@ -569,5 +601,13 @@ export default function SettingsPage() {
         </Tabs>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsPageContent />
+    </Suspense>
   )
 }

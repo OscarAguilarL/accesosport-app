@@ -100,6 +100,7 @@ export interface RegistrationResponse {
   status: 'PENDING_PAYMENT' | 'CONFIRMED' | 'CANCELLED'
   ticketCode: string
   registeredAt: string
+  paymentAccessToken?: string | null
 }
 
 export interface CreateEventRequest {
@@ -145,10 +146,18 @@ export interface OrganizerProfileResponse {
 
 export interface CheckoutSessionResponse {
   sessionId: string
-  checkoutUrl: string
+  checkoutUrl: string | null
+  paymentAlreadyCompleted: boolean
 }
 
-export type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'REFUNDED' | 'FAILED'
+export type PaymentStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'REFUND_PENDING'
+  | 'REFUND_FAILED'
+  | 'MANUAL_REFUND_PENDING'
+  | 'REFUNDED'
+  | 'FAILED'
 
 export interface PaymentStatusResponse {
   paymentStatus: PaymentStatus
@@ -165,7 +174,10 @@ export interface ConnectOnboardingResponse {
 export interface ConnectStatusResponse {
   stripeAccountId: string | null
   onboardingCompleted: boolean
-  chargesEnabled: boolean
+  transfersActive: boolean
+  payoutsActive: boolean
+  hasCurrentlyDueRequirements: boolean
+  status: 'NOT_CONNECTED' | 'ONBOARDING_REQUIRED' | 'STRIPE_REVIEW' | 'PAYOUTS_RESTRICTED' | 'READY'
 }
 
 export interface OrganizerProfileWithTokenResponse {
