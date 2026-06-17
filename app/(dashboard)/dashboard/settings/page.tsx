@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
@@ -10,15 +11,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageDropzone } from '@/components/ui/image-dropzone'
-import { profile as profileApi, auth as authApi, ApiError } from '@/lib/api'
+import { profile as profileApi, auth as authApi, payments as paymentsApi, ApiError } from '@/lib/api'
 import { PasswordInput } from '@/components/ui/password-input'
-import type { OrganizerProfileResponse } from '@/lib/types'
-import { Globe, Instagram, Facebook, Save, Lock } from 'lucide-react'
+import type { OrganizerProfileResponse, ConnectStatusResponse } from '@/lib/types'
+import { Globe, Instagram, Facebook, Save, Lock, CreditCard, CheckCircle2, ExternalLink } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
   const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfileResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -41,6 +43,14 @@ export default function SettingsPage() {
     description: '',
   })
 
+  // Stripe Connect state
+  const [connectStatus, setConnectStatus] = useState<ConnectStatusResponse | null>(null)
+  const [isLoadingConnect, setIsLoadingConnect] = useState(true)
+  const [isStartingOnboarding, setIsStartingOnboarding] = useState(false)
+  const [connectError, setConnectError] = useState<string | null>(null)
+
+  const defaultTab = searchParams.get('tab') ?? 'perfil'
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -59,8 +69,39 @@ export default function SettingsPage() {
         setIsLoading(false)
       }
     }
+
+    const fetchConnectStatus = async () => {
+      try {
+        const status = await paymentsApi.getConnectStatus()
+        setConnectStatus(status)
+      } catch {
+        // no-op — might not be an organizer yet
+      } finally {
+        setIsLoadingConnect(false)
+      }
+    }
+
     fetchProfile()
+    fetchConnectStatus()
   }, [])
+
+  useEffect(() => {
+    if (searchParams.get('stripe') !== 'refresh') return
+
+    const refreshOnboarding = async () => {
+      setIsStartingOnboarding(true)
+      setConnectError(null)
+      try {
+        const { onboardingUrl } = await paymentsApi.startOnboarding()
+        window.location.href = onboardingUrl
+      } catch {
+        setConnectError('No se pudo renovar el enlace de verificación. Intenta de nuevo.')
+        setIsStartingOnboarding(false)
+      }
+    }
+
+    refreshOnboarding()
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -123,6 +164,18 @@ export default function SettingsPage() {
     }
   }
 
+  const handleStartOnboarding = async () => {
+    setIsStartingOnboarding(true)
+    setConnectError(null)
+    try {
+      const { onboardingUrl } = await paymentsApi.startOnboarding()
+      window.location.href = onboardingUrl
+    } catch {
+      setConnectError('No se pudo iniciar el proceso. Intenta de nuevo.')
+      setIsStartingOnboarding(false)
+    }
+  }
+
   const initials = [user?.firstName, user?.lastName]
     .filter(Boolean)
     .map((n) => n![0].toUpperCase())
@@ -150,7 +203,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="perfil" orientation="vertical"
+        <Tabs defaultValue={defaultTab} orientation="vertical"
           className="flex flex-col md:flex-row gap-6">
 
           <TabsList className="
@@ -172,6 +225,21 @@ export default function SettingsPage() {
               whitespace-nowrap
             ">
               Perfil de Organizador
+            </TabsTrigger>
+
+            <TabsTrigger value="pagos" className="
+              justify-start w-full text-left px-3 py-2 rounded-lg
+              data-[state=active]:bg-[#F1F5FD]
+              data-[state=active]:border-l-2
+              data-[state=active]:border-[#2563EB]
+              data-[state=active]:font-semibold
+              data-[state=active]:text-[#0F172A]
+              text-slate-500 hover:bg-muted/50
+              transition-all duration-150
+              whitespace-nowrap
+            ">
+              <CreditCard className="h-3 w-3 mr-2 shrink-0" />
+              Pagos
             </TabsTrigger>
 
             <TabsTrigger value="seguridad" className="
@@ -340,6 +408,118 @@ export default function SettingsPage() {
               </Card>
             </TabsContent>
 
+            {/* Pagos */}
+            <TabsContent value="pagos">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Cuenta de Pagos (Stripe)
+                  </CardTitle>
+                  <CardDescription>
+                    Conecta tu cuenta de Stripe para recibir pagos de inscripciones.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingConnect ? (
+                    <div className="flex h-24 items-center justify-center">
+                      <Spinner className="h-6 w-6" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {connectStatus?.status === 'READY' ? (
+                        <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
+                          <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="font-medium text-green-800">Cuenta conectada</p>
+                            <p className="text-sm text-green-700 mt-0.5">
+                              Tu cuenta de Stripe está activa y lista para recibir pagos.
+                            </p>
+                          </div>
+                        </div>
+                      ) : connectStatus?.status === 'STRIPE_REVIEW' ? (
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-2">
+                          <p className="text-sm font-medium text-blue-800">Revisión de Stripe</p>
+                          <p className="text-sm text-blue-700">
+                            Stripe está revisando la información enviada. No necesitas hacer nada por ahora.
+                          </p>
+                        </div>
+                      ) : connectStatus?.status === 'PAYOUTS_RESTRICTED' ? (
+                        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 space-y-3">
+                          <p className="text-sm font-medium text-orange-800">Payouts restringidos</p>
+                          <p className="text-sm text-orange-700">
+                            La cuenta existe, pero transferencias o retiros aún no están activos.
+                          </p>
+                          <Button onClick={handleStartOnboarding} disabled={isStartingOnboarding} size="sm">
+                            {isStartingOnboarding ? <><Spinner className="mr-2 h-4 w-4" />Redirigiendo...</> : 'Revisar en Stripe'}
+                          </Button>
+                        </div>
+                      ) : connectStatus?.stripeAccountId ? (
+                        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 space-y-3">
+                          <p className="text-sm font-medium text-yellow-800">
+                            Verificación pendiente
+                          </p>
+                          <p className="text-sm text-yellow-700">
+                            Tu cuenta de Stripe está creada pero necesitas completar el proceso de verificación para empezar a cobrar.
+                          </p>
+                          {connectError && (
+                            <p className="text-sm text-destructive">{connectError}</p>
+                          )}
+                          <Button
+                            onClick={handleStartOnboarding}
+                            disabled={isStartingOnboarding}
+                            size="sm"
+                          >
+                            {isStartingOnboarding ? (
+                              <>
+                                <Spinner className="mr-2 h-4 w-4" />
+                                Redirigiendo...
+                              </>
+                            ) : (
+                              <>
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Completar verificación
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <p className="text-sm text-muted-foreground">
+                            Para publicar eventos con costo y recibir pagos, necesitas conectar tu cuenta de Stripe.
+                          </p>
+                          <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                            <li>Los participantes pagan directamente en el checkout de Stripe</li>
+                            <li>Recibes el 100% del precio base de inscripción</li>
+                            <li>AccesoSport retiene un cargo por servicio separado</li>
+                          </ul>
+                          {connectError && (
+                            <p className="text-sm text-destructive">{connectError}</p>
+                          )}
+                          <Button
+                            onClick={handleStartOnboarding}
+                            disabled={isStartingOnboarding}
+                          >
+                            {isStartingOnboarding ? (
+                              <>
+                                <Spinner className="mr-2 h-4 w-4" />
+                                Redirigiendo a Stripe...
+                              </>
+                            ) : (
+                              <>
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Conectar con Stripe
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* Seguridad */}
             <TabsContent value="seguridad">
               <Card>
@@ -421,5 +601,13 @@ export default function SettingsPage() {
         </Tabs>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsPageContent />
+    </Suspense>
   )
 }

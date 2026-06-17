@@ -1,10 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import type { ShirtSize, BloodType } from '@/lib/types'
 import { useRegistrationFlow } from '@/lib/hooks/useRegistrationFlow'
 import { formatPrice, formatDateLong } from '@/lib/domain/formatting'
+import { calculateServiceFee } from '@/lib/domain/registrations'
+import { payments as paymentsApi, savePaymentAccessToken, getPaymentAccessToken } from '@/lib/api/payments'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -38,6 +41,8 @@ export default function InscribirsePage() {
   const params = useParams()
   const eventId = params.eventId as string
   const flow = useRegistrationFlow(eventId)
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   const {
     event,
@@ -75,6 +80,30 @@ export default function InscribirsePage() {
     handleRegister,
     isPageLoading,
   } = flow
+
+  const handlePaidRegister = async () => {
+    setCheckoutError(null)
+    const reg = await flow.handleRegister()
+    if (!reg || reg.status !== 'PENDING_PAYMENT') return
+    setIsRedirectingToStripe(true)
+    try {
+      if (reg.paymentAccessToken) {
+        savePaymentAccessToken(reg.id, reg.paymentAccessToken)
+      }
+      const accessToken = getPaymentAccessToken(reg.id)
+      const { checkoutUrl, paymentAlreadyCompleted } = await paymentsApi.createCheckoutSession(reg.id, accessToken)
+      if (paymentAlreadyCompleted) {
+        window.location.href = `/inscripcion/exitosa?registration_id=${reg.id}`
+        return
+      }
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl
+      }
+    } catch {
+      setCheckoutError('No se pudo iniciar el pago. Intenta de nuevo.')
+      setIsRedirectingToStripe(false)
+    }
+  }
 
   function renderWaiverContent(template: string, includeAcceptedAt: boolean): React.ReactNode {
     const participantFullName = flow.participantFullName
@@ -554,12 +583,46 @@ export default function InscribirsePage() {
 
             {effectivePrice > 0 ? (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Este evento tiene un costo de <strong>{formatPrice(effectivePrice)}</strong>.
-                  El pago en línea estará disponible próximamente.
-                </p>
-                <Button disabled className="w-full">
-                  Proceder al pago (próximamente)
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Inscripción</span>
+                    <span>{formatPrice(effectivePrice)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Cargo por servicio</span>
+                    <span>{formatPrice(calculateServiceFee(effectivePrice))}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                    <span>Total</span>
+                    <span>{formatPrice(effectivePrice + calculateServiceFee(effectivePrice))}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Métodos de pago: tarjeta bancaria, OXXO
+                  </p>
+                </div>
+                {checkoutError && (
+                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                    {checkoutError}
+                  </div>
+                )}
+                <Button
+                  className="w-full"
+                  onClick={handlePaidRegister}
+                  disabled={
+                    flow.isRegistering ||
+                    isRedirectingToStripe ||
+                    !waiverAccepted ||
+                    (selectedModality?.priceWithoutShirt != null && wantsShirt === null)
+                  }
+                >
+                  {flow.isRegistering || isRedirectingToStripe ? (
+                    <>
+                      <Spinner className="mr-2" />
+                      {isRedirectingToStripe ? 'Redirigiendo a pago...' : 'Procesando...'}
+                    </>
+                  ) : (
+                    'Ir a pagar'
+                  )}
                 </Button>
               </div>
             ) : (
