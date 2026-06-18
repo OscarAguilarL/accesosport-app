@@ -2,6 +2,7 @@ import { fetchApi } from './client'
 import type {
   CheckoutSessionResponse,
   PaymentStatusResponse,
+  PricingBreakdownResponse,
   ConnectOnboardingResponse,
   ConnectStatusResponse,
 } from '../types'
@@ -32,6 +33,11 @@ export const payments = {
     fetchApi<PaymentStatusResponse>(`/api/v1/payments/registration/${registrationId}`, {
       headers: accessToken ? { 'X-Registration-Access-Token': accessToken } : undefined,
     }),
+
+  getFeeBreakdown: (basePrice: number) =>
+    fetchApi<PricingBreakdownResponse>(
+      `/api/v1/public/payments/fee-breakdown?basePrice=${basePrice}`
+    ),
 
   getConnectStatus: () =>
     fetchApi<ConnectStatusResponse>('/api/v1/stripe/connect/status'),

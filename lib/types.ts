@@ -167,6 +167,12 @@ export interface PaymentStatusResponse {
   serviceFee: number
 }
 
+export interface PricingBreakdownResponse {
+  basePrice: number
+  serviceFee: number
+  total: number
+}
+
 export interface ConnectOnboardingResponse {
   onboardingUrl: string
 }

@@ -1,12 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import type { ShirtSize, BloodType } from '@/lib/types'
+import type { ShirtSize, BloodType, PricingBreakdownResponse } from '@/lib/types'
 import { useRegistrationFlow } from '@/lib/hooks/useRegistrationFlow'
 import { formatPrice, formatDateLong } from '@/lib/domain/formatting'
-import { calculateServiceFee } from '@/lib/domain/registrations'
 import { payments as paymentsApi, savePaymentAccessToken, getPaymentAccessToken } from '@/lib/api/payments'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +42,7 @@ export default function InscribirsePage() {
   const flow = useRegistrationFlow(eventId)
   const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [pricingBreakdown, setPricingBreakdown] = useState<PricingBreakdownResponse | null>(null)
 
   const {
     event,
@@ -80,6 +80,13 @@ export default function InscribirsePage() {
     handleRegister,
     isPageLoading,
   } = flow
+
+  useEffect(() => {
+    if (effectivePrice > 0) {
+      setPricingBreakdown(null)
+      paymentsApi.getFeeBreakdown(effectivePrice).then(setPricingBreakdown)
+    }
+  }, [effectivePrice])
 
   const handlePaidRegister = async () => {
     setCheckoutError(null)
@@ -590,11 +597,11 @@ export default function InscribirsePage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Cargo por servicio</span>
-                    <span>{formatPrice(calculateServiceFee(effectivePrice))}</span>
+                    <span>{pricingBreakdown ? formatPrice(pricingBreakdown.serviceFee) : '—'}</span>
                   </div>
                   <div className="flex justify-between font-semibold border-t pt-2 mt-2">
                     <span>Total</span>
-                    <span>{formatPrice(effectivePrice + calculateServiceFee(effectivePrice))}</span>
+                    <span>{pricingBreakdown ? formatPrice(pricingBreakdown.total) : '—'}</span>
                   </div>
                   <p className="text-xs text-muted-foreground pt-1">
                     Métodos de pago: tarjeta bancaria, OXXO
@@ -609,6 +616,7 @@ export default function InscribirsePage() {
                   className="w-full"
                   onClick={handlePaidRegister}
                   disabled={
+                    !pricingBreakdown ||
                     flow.isRegistering ||
                     isRedirectingToStripe ||
                     !waiverAccepted ||

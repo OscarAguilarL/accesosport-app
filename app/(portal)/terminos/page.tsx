@@ -68,12 +68,17 @@ export default function TerminosPage() {
           <ul className="list-disc space-y-2 pl-6 leading-relaxed">
             <li>
               <strong>Cancelación por el organizador:</strong> Si el evento es cancelado por el
-              organizador, el participante recibirá un reembolso total del monto pagado.
+              organizador, el participante recibirá un reembolso total del monto pagado. El
+              organizador absorberá la comisión de procesamiento de Stripe.
             </li>
             <li>
-              <strong>Cancelación por el participante:</strong> Si el participante cancela su
-              inscripción, recibirá un reembolso total. AccesoSport absorberá la comisión de
-              procesamiento del pago.
+              <strong>Cancelación por el participante (más de 15 días antes del evento):</strong>{" "}
+              El participante recibirá un reembolso parcial del precio base de inscripción, menos
+              una comisión de cancelación del 8%.
+            </li>
+            <li>
+              <strong>Cancelación por el participante (15 días o menos antes del evento):</strong>{" "}
+              No se realizará ningún reembolso.
             </li>
             <li>
               <strong>Tiempo de reembolso:</strong> Para pagos con tarjeta, el reembolso se

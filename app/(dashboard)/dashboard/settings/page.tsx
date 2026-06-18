@@ -490,8 +490,8 @@ function SettingsPageContent() {
                           </p>
                           <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
                             <li>Los participantes pagan directamente en el checkout de Stripe</li>
-                            <li>Recibes el 100% del precio base de inscripción</li>
-                            <li>AccesoSport retiene un cargo por servicio separado</li>
+                            <li>Recibes el precio base de inscripción, menos una comisión de plataforma del 5% (mínimo $10 MXN)</li>
+                            <li>AccesoSport cobra al participante un cargo por servicio del 10% (mínimo $20 MXN)</li>
                           </ul>
                           {connectError && (
                             <p className="text-sm text-destructive">{connectError}</p>

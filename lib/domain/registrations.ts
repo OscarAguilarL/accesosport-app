@@ -29,10 +29,6 @@ export function getSuggestedCategory(
   )
 }
 
-export function calculateServiceFee(basePrice: number): number {
-  return Math.max(20, basePrice * 0.08)
-}
-
 export function getParticipantAge(birthDate?: string | null): number | null {
   if (!birthDate) return null
   return Math.floor(
