@@ -415,3 +415,20 @@ export interface ParticipantInEventResponse {
   registeredAt: string
   wantsShirt: boolean
 }
+
+export type OrganizerVerificationStatus = 'NOT_SUBMITTED' | 'PENDING_REVIEW' | 'VERIFIED' | 'REJECTED'
+
+export interface AdminOrganizerListItem {
+  organizerProfileId: string
+  userId: string
+  email: string
+  organizationName: string
+  logoUrl: string | null
+  verificationStatus: OrganizerVerificationStatus
+  verifiedAt: string | null
+  personalDataComplete: boolean
+  stripeLinked: boolean
+  stripeOnboardingCompleted: boolean
+  stripeTransfersActive: boolean
+  createdAt: string
+}
