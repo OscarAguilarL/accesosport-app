@@ -10,6 +10,16 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError } from '@/lib/api'
 import type { AdminOrganizerListItem, OrganizerVerificationStatus } from '@/lib/types'
@@ -39,6 +49,9 @@ export default function AdminOrganizadoresPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [reminderPendingId, setReminderPendingId] = useState<string | null>(null)
+  const [reminderSuccess, setReminderSuccess] = useState<string | null>(null)
+  const [reminderTarget, setReminderTarget] = useState<AdminOrganizerListItem | null>(null)
 
   useEffect(() => {
     if (!isAuthLoading && !roles.includes('ROLE_ADMIN')) {
@@ -78,6 +91,20 @@ export default function AdminOrganizadoresPage() {
     }
   }
 
+  const handleSendReminder = async (id: string, orgName: string) => {
+    setReminderPendingId(id)
+    setActionError(null)
+    setReminderSuccess(null)
+    try {
+      await admin.remindStripeOnboarding(id)
+      setReminderSuccess(`Recordatorio enviado a ${orgName}.`)
+    } catch (err) {
+      setActionError(err instanceof ApiError ? (err.detail || err.message) : 'Error al enviar el recordatorio.')
+    } finally {
+      setReminderPendingId(null)
+    }
+  }
+
   if (isAuthLoading || (isLoading && items.length === 0)) {
     return (
       <DashboardLayout title="Organizadores">
@@ -102,6 +129,12 @@ export default function AdminOrganizadoresPage() {
           {actionError && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {actionError}
+            </div>
+          )}
+
+          {reminderSuccess && (
+            <div className="rounded-md bg-green-50 p-3 text-sm text-green-700 border border-green-200">
+              {reminderSuccess}
             </div>
           )}
 
@@ -132,6 +165,7 @@ export default function AdminOrganizadoresPage() {
                   <TableBody>
                     {items.map((org) => {
                       const isBusy = pendingId === org.organizerProfileId
+                      const isReminderBusy = reminderPendingId === org.organizerProfileId
                       const canApprove = org.personalDataComplete && org.stripeLinked
                       const approveDisabledReason = !org.personalDataComplete
                         ? 'Le faltan datos personales o dirección'
@@ -180,6 +214,18 @@ export default function AdminOrganizadoresPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
+                              {!org.stripeLinked && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={isReminderBusy}
+                                  onClick={() => setReminderTarget(org)}
+                                >
+                                  {isReminderBusy ? <Spinner className="mr-1" /> : null}
+                                  Recordatorio Stripe
+                                </Button>
+                              )}
+
                               {org.verificationStatus !== 'VERIFIED' && (
                                 approveDisabledReason ? (
                                   <Tooltip>
@@ -254,6 +300,30 @@ export default function AdminOrganizadoresPage() {
           </Card>
         </div>
       </DashboardLayout>
+
+      <AlertDialog open={!!reminderTarget} onOpenChange={(open) => { if (!open) setReminderTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enviar recordatorio de Stripe</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se enviará un email a <strong>{reminderTarget?.email}</strong> con instrucciones para conectar su cuenta de Stripe. ¿Continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (reminderTarget) {
+                  handleSendReminder(reminderTarget.organizerProfileId, reminderTarget.organizationName)
+                  setReminderTarget(null)
+                }
+              }}
+            >
+              Enviar recordatorio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   )
 }

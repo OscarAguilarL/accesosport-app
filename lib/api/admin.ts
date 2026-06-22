@@ -13,4 +13,7 @@ export const admin = {
 
   submitOrganizerForReview: (id: string): Promise<AdminOrganizerListItem> =>
     fetchApi(`/api/v1/admin/organizers/${id}/submit-review`, { method: 'POST' }),
+
+  remindStripeOnboarding: (id: string): Promise<void> =>
+    fetchApi(`/api/v1/admin/organizers/${id}/remind-stripe`, { method: 'POST' }),
 }
