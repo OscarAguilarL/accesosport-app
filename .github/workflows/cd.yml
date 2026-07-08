@@ -48,14 +48,19 @@ jobs:
           ENV_KEY: ${{ github.ref_name == 'main' && 'FRONTEND_IMAGE_TAG' || 'FRONTEND_STAGING_IMAGE_TAG' }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ubuntu@${{ secrets.EC2_HOST }} "
             cd ~/accesosport-infra/deploy
             sed -i 's|${ENV_KEY}=.*|${ENV_KEY}=${IMAGE_TAG}|' .env
             aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-            docker compose pull ${SERVICE}
-            docker compose up -d --no-deps ${SERVICE}
-            docker compose ps ${SERVICE}
+            if [[ '${SERVICE}' == *staging* ]]; then
+              COMPOSE_ARGS='-f docker-compose.yml -f docker-compose.staging.yml'
+            else
+              COMPOSE_ARGS='-f docker-compose.yml'
+            fi
+            docker compose \$COMPOSE_ARGS pull ${SERVICE}
+            docker compose \$COMPOSE_ARGS up -d --no-deps ${SERVICE}
+            docker compose \$COMPOSE_ARGS ps ${SERVICE}
           "
