@@ -19,8 +19,7 @@ import {
 import { checkin as checkinApi, registrations as registrationsApi } from '@/lib/api'
 import type { ParticipantInEventResponse } from '@/lib/types'
 import { ArrowLeft, CheckCircle2, Package, QrCode, Search, XCircle } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatDateTime } from '@/lib/domain/formatting'
 
 const SHIRT_SIZE_LABELS: Record<string, string> = {
   SIZE_XS: 'XS',
@@ -81,8 +80,8 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const list = await registrationsApi.getByEvent(eventId)
-        const confirmed = list.filter(p => p.status === 'CONFIRMED')
+        const res = await registrationsApi.getByEvent(eventId, 0, 100)
+        const confirmed = res.content.filter(p => p.status === 'CONFIRMED')
         setTotalConfirmed(confirmed.length)
         setKitsDelivered(confirmed.filter(p => p.kitPickedUp).length)
       } catch {
@@ -384,8 +383,7 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
                   </div>
                   {participant.kitPickedUp && participant.kitPickedUpAt && (
                     <p className="text-xs text-muted-foreground">
-                      Entregado el{' '}
-                      {format(new Date(participant.kitPickedUpAt), "d MMM yyyy 'a las' HH:mm", { locale: es })}
+                      Entregado el {formatDateTime(participant.kitPickedUpAt)}
                     </p>
                   )}
                   <Button

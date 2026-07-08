@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageDropzone } from '@/components/ui/image-dropzone'
+import { DatePicker } from '@/components/ui/date-picker'
 
 const STEPS = [
   { title: 'Información personal', description: 'Cuéntanos sobre ti' },
@@ -23,8 +24,8 @@ const STEPS = [
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { refreshUser } = useAuth()
-  const [step, setStep] = useState(0)
+  const { refreshUser, user } = useAuth()
+  const [step, setStep] = useState(() => (typeof window !== 'undefined' && !!user?.firstName ? 2 : 0))
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -60,6 +61,10 @@ export default function OnboardingPage() {
 
   const handlePersonalDataSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!personalData.gender) {
+      setError('Selecciona tu género para continuar.')
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {
@@ -91,11 +96,29 @@ export default function OnboardingPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const { token } = await profileApi.createOrganizer(organizerProfile)
+      const pendingToken = localStorage.getItem('pendingInvitationToken') ?? undefined
+      const { token } = await profileApi.createOrganizer({
+        ...organizerProfile,
+        invitationToken: pendingToken,
+      })
       localStorage.setItem('accessToken', token)
+      localStorage.removeItem('pendingInvitationToken')
       setStep(3)
     } catch (err) {
-      setError(err instanceof ApiError ? (err.detail || err.message) : 'Error al crear el perfil.')
+      if (err instanceof ApiError && err.status === 422) {
+        // Token de invitación no coincide con esta cuenta — descartarlo y reintentar sin él
+        localStorage.removeItem('pendingInvitationToken')
+        try {
+          const { token } = await profileApi.createOrganizer(organizerProfile)
+          localStorage.setItem('accessToken', token)
+          setStep(3)
+          return
+        } catch (retryErr) {
+          setError(retryErr instanceof ApiError ? (retryErr.detail || retryErr.message) : 'Error al crear el perfil.')
+        }
+      } else {
+        setError(err instanceof ApiError ? (err.detail || err.message) : 'Error al crear el perfil.')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -198,11 +221,9 @@ export default function OnboardingPage() {
 
                 <Field>
                   <FieldLabel htmlFor="birthDate">Fecha de nacimiento *</FieldLabel>
-                  <Input
-                    id="birthDate"
-                    type="date"
+                  <DatePicker
                     value={personalData.birthDate}
-                    onChange={(e) => setPersonalData({ ...personalData, birthDate: e.target.value })}
+                    onChange={(v) => setPersonalData({ ...personalData, birthDate: v })}
                     required
                     disabled={isLoading}
                   />
@@ -242,7 +263,7 @@ export default function OnboardingPage() {
                   />
                 </Field>
 
-                <Button type="submit" className="w-full" disabled={isLoading || !personalData.gender}>
+                <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? <><Spinner className="mr-2" /> Guardando...</> : 'Continuar'}
                 </Button>
               </FieldGroup>

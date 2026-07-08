@@ -1,16 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React from 'react'
 import Link from 'next/link'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { events } from '@/lib/api'
 import type { EventSummaryResponse } from '@/lib/types'
 import { EVENT_STATUS_LABELS } from '@/lib/types'
+import { useDashboardStats } from '@/lib/hooks/useDashboardStats'
+import { formatPrice, formatDate } from '@/lib/domain/formatting'
 import { Calendar, Users, TrendingUp, PlusCircle, ArrowRight, Clock, LayoutGrid } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { Spinner } from '@/components/ui/spinner'
 
 function StatCard({
@@ -47,24 +46,7 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  const [myEvents, setMyEvents] = useState<EventSummaryResponse[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    events.listMyEvents()
-      .then(setMyEvents)
-      .catch((e) => console.log('[dashboard] Error fetching events:', e))
-      .finally(() => setIsLoading(false))
-  }, [])
-
-  const stats = {
-    totalEvents: myEvents.length,
-    activeEvents: myEvents.filter(e => e.status === 'REGISTRATION_OPEN' || e.status === 'PUBLISHED').length,
-    totalSpots: myEvents.reduce((acc, e) => acc + (e.totalAvailableSpots || 0), 0),
-    upcomingEvents: myEvents.filter(e => e.eventDate && new Date(e.eventDate) > new Date()).length,
-  }
-
-  const recentEvents = myEvents.slice(0, 5)
+  const { myEvents, stats, recentEvents, isLoading } = useDashboardStats()
 
   return (
     <DashboardLayout title="Dashboard" description="Resumen de tus eventos deportivos">
@@ -159,7 +141,7 @@ export default function DashboardPage() {
                             {event.location && <span className="truncate">{event.location}</span>}
                             {event.eventDate && (
                               <span className="shrink-0">
-                                {format(new Date(event.eventDate), "d MMM yyyy", { locale: es })}
+                                {formatDate(event.eventDate)}
                               </span>
                             )}
                           </div>
@@ -167,7 +149,7 @@ export default function DashboardPage() {
                         <div className="flex shrink-0 items-center gap-3">
                           {event.minPrice !== undefined && (
                             <span className="text-sm font-semibold text-foreground">
-                              {event.minPrice === 0 ? 'Gratis' : `$${event.minPrice.toFixed(0)}`}
+                              {formatPrice(event.minPrice)}
                             </span>
                           )}
                           <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeColors[statusInfo.variant] ?? badgeColors.default}`}>

@@ -3,9 +3,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   LayoutDashboard,
   Calendar,
@@ -14,7 +16,11 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Trophy,
+  Mail,
+  ShieldCheck,
+  type LucideIcon,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -22,21 +28,86 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-const navItems = [
-  { title: 'Dashboard',            href: '/dashboard',            icon: LayoutDashboard },
-  { title: 'Mis Eventos',          href: '/dashboard/events',     icon: Calendar },
-  { title: 'Crear Evento',         href: '/dashboard/events/new', icon: PlusCircle },
-  { title: 'Configuración',        href: '/dashboard/settings',   icon: Settings },
-  { title: 'Portal participantes', href: '/eventos',              icon: Trophy },
+type NavItem  = { title: string; href: string; icon: LucideIcon }
+type NavGroup = { title: string; icon: LucideIcon; children: NavItem[] }
+type NavEntry =
+  | { kind: 'link';  adminOnly: boolean; item: NavItem  }
+  | { kind: 'group'; adminOnly: boolean; group: NavGroup }
+
+const navEntries: NavEntry[] = [
+  {
+    kind: 'link', adminOnly: false,
+    item: { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  },
+  {
+    kind: 'group', adminOnly: false,
+    group: {
+      title: 'Eventos', icon: Calendar,
+      children: [
+        { title: 'Mis Eventos',  href: '/dashboard/events',     icon: Calendar   },
+        { title: 'Crear Evento', href: '/dashboard/events/new', icon: PlusCircle },
+      ],
+    },
+  },
+  {
+    kind: 'link', adminOnly: false,
+    item: { title: 'Portal participantes', href: '/eventos', icon: Trophy },
+  },
+  {
+    kind: 'group', adminOnly: true,
+    group: {
+      title: 'Admin', icon: ShieldCheck,
+      children: [
+        { title: 'Invitaciones',  href: '/dashboard/invitaciones',        icon: Mail       },
+        { title: 'Organizadores', href: '/dashboard/admin/organizadores', icon: ShieldCheck },
+      ],
+    },
+  },
+  {
+    kind: 'link', adminOnly: false,
+    item: { title: 'Configuración', href: '/dashboard/settings', icon: Settings },
+  },
 ]
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const { user, logout, roles } = useAuth()
+  const isAdmin = roles.includes('ROLE_ADMIN')
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    for (const entry of navEntries) {
+      if (entry.kind === 'group') {
+        initial[entry.group.title] = entry.group.children.some((c) =>
+          pathname.startsWith(c.href)
+        )
+      }
+    }
+    return initial
+  })
+
+  const toggleGroup = (title: string) =>
+    setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }))
 
   const initials = user?.firstName
     ? user.firstName[0].toUpperCase()
     : user?.email?.[0]?.toUpperCase() ?? 'U'
+
+  const linkClass = (active: boolean) =>
+    cn(
+      'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
+      active
+        ? 'bg-sidebar-primary/10 text-sidebar-primary'
+        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+      isCollapsed && 'justify-center px-2'
+    )
+
+  const isLinkActive = (href: string) =>
+    href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
+
+  const visibleEntries = navEntries.filter(
+    (e) => !e.adminOnly || isAdmin
+  )
 
   return (
     <aside
@@ -105,28 +176,87 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </p>
         )}
         <ul className="space-y-0.5">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === '/dashboard'
-                ? pathname === '/dashboard'
-                : pathname.startsWith(item.href)
+          {visibleEntries.map((entry) => {
+            if (entry.kind === 'link') {
+              const { item } = entry
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    title={isCollapsed ? item.title : undefined}
+                    className={linkClass(isLinkActive(item.href))}
+                  >
+                    <item.icon className="h-[18px] w-[18px] shrink-0" />
+                    {!isCollapsed && <span>{item.title}</span>}
+                  </Link>
+                </li>
+              )
+            }
+
+            const { group } = entry
+            const groupIsActive = group.children.some((c) => pathname.startsWith(c.href))
+
+            if (isCollapsed) {
+              return group.children.map((child) => (
+                <li key={child.href}>
+                  <Link
+                    href={child.href}
+                    title={child.title}
+                    className={linkClass(isLinkActive(child.href))}
+                  >
+                    <child.icon className="h-[18px] w-[18px] shrink-0" />
+                  </Link>
+                </li>
+              ))
+            }
 
             return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  title={isCollapsed ? item.title : undefined}
-                  className={cn(
-                    'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
-                    isActive
-                      ? 'bg-sidebar-primary/10 text-sidebar-primary'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                    isCollapsed && 'justify-center px-2'
-                  )}
+              <li key={group.title}>
+                <Collapsible
+                  open={openGroups[group.title]}
+                  onOpenChange={(open) =>
+                    setOpenGroups((prev) => ({ ...prev, [group.title]: open }))
+                  }
                 >
-                  <item.icon className="h-[18px] w-[18px] shrink-0" />
-                  {!isCollapsed && <span>{item.title}</span>}
-                </Link>
+                  <CollapsibleTrigger
+                    onClick={() => toggleGroup(group.title)}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
+                      groupIsActive
+                        ? 'text-sidebar-primary'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    )}
+                  >
+                    <group.icon className="h-[18px] w-[18px] shrink-0" />
+                    <span className="flex-1 text-left">{group.title}</span>
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 shrink-0 transition-transform duration-200',
+                        openGroups[group.title] && 'rotate-180'
+                      )}
+                    />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <ul className="mt-0.5 space-y-0.5">
+                      {group.children.map((child) => (
+                        <li key={child.href}>
+                          <Link
+                            href={child.href}
+                            className={cn(
+                              'flex items-center gap-3 rounded-lg py-2 pl-9 pr-3 text-sm font-medium transition-colors duration-150',
+                              isLinkActive(child.href)
+                                ? 'bg-sidebar-primary/10 text-sidebar-primary'
+                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            )}
+                          >
+                            <child.icon className="h-[16px] w-[16px] shrink-0" />
+                            <span>{child.title}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
               </li>
             )
           })}

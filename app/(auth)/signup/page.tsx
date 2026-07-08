@@ -15,16 +15,21 @@ import { ApiError } from '@/lib/api'
 
 export default function SignupPage() {
   const router = useRouter()
-  const { signup, isAuthenticated, isLoading: isAuthLoading, roles } = useAuth()
+  const { signup, isAuthenticated, isLoading: isAuthLoading, roles, needsOnboarding } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
+      if (needsOnboarding) {
+        router.replace('/onboarding-participante')
+        return
+      }
       const lastPath = getLastAuthPath()
       router.replace(lastPath ?? (roles.includes('ROLE_ORGANIZER') ? '/dashboard' : '/eventos'))
     }
-  }, [isAuthenticated, isAuthLoading, roles, router])
+  }, [isAuthenticated, isAuthLoading, roles, router, needsOnboarding])
   const [error, setError] = useState<string | null>(null)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -44,7 +49,7 @@ export default function SignupPage() {
 
     try {
       await signup(formData)
-      router.push('/eventos')
+      // La navegación la maneja el useEffect al detectar needsOnboarding=true
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail || err.message)
@@ -128,7 +133,29 @@ export default function SignupPage() {
                 />
               </Field>
               
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Field>
+                <label className="flex cursor-pointer items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border accent-primary"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    disabled={isLoading}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Acepto los{' '}
+                    <Link href="/terminos" target="_blank" className="font-medium text-primary hover:underline">
+                      términos y condiciones
+                    </Link>
+                    {' '}y la{' '}
+                    <Link href="/privacidad" target="_blank" className="font-medium text-primary hover:underline">
+                      política de privacidad
+                    </Link>
+                  </span>
+                </label>
+              </Field>
+
+              <Button type="submit" className="w-full" disabled={isLoading || !termsAccepted}>
                 {isLoading ? (
                   <>
                     <Spinner className="mr-2" />

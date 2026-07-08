@@ -23,6 +23,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import { events as eventsApi } from '@/lib/api'
 import type { EventSummaryResponse } from '@/lib/types'
 import { EVENT_STATUS_LABELS } from '@/lib/types'
@@ -37,8 +44,7 @@ import {
   MapPin,
   Users,
 } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatDate } from '@/lib/domain/formatting'
 
 export default function EventsPage() {
   const [events, setEvents] = useState<EventSummaryResponse[]>([])
@@ -46,15 +52,18 @@ export default function EventsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
 
   useEffect(() => {
     const fetchEvents = async () => {
       setIsLoading(true)
       try {
-        const status = statusFilter !== 'all' ? statusFilter : undefined
-        const data = await eventsApi.list(status)
-        setEvents(data)
-        setFilteredEvents(data)
+        const status = statusFilter !== 'all' ? (statusFilter as EventSummaryResponse['status']) : undefined
+        const res = await eventsApi.list(status, page)
+        setEvents(res.content)
+        setFilteredEvents(res.content)
+        setTotalPages(res.totalPages)
       } catch (error) {
         console.log('[v0] Error fetching events:', error)
       } finally {
@@ -62,7 +71,7 @@ export default function EventsPage() {
       }
     }
     fetchEvents()
-  }, [statusFilter])
+  }, [statusFilter, page])
 
   useEffect(() => {
     let result = events
@@ -191,9 +200,7 @@ export default function EventsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Calendar className="h-4 w-4" />
-                          {event.eventDate
-                            ? format(new Date(event.eventDate), "d MMM yyyy", { locale: es })
-                            : '-'}
+                          {event.eventDate ? formatDate(event.eventDate) : '-'}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -250,6 +257,31 @@ export default function EventsPage() {
                 </TableBody>
               </Table>
             </div>
+          )}
+          {totalPages > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    aria-disabled={page === 0}
+                    className={page === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="px-3 py-1 text-sm text-muted-foreground">
+                    Página {page + 1} de {totalPages}
+                  </span>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    aria-disabled={page >= totalPages - 1}
+                    className={page >= totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           )}
         </CardContent>
       </Card>

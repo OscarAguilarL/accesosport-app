@@ -1,0 +1,66 @@
+name: CD — Frontend
+
+on:
+  push:
+    branches: [main, dev]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          NEXT_PUBLIC_API_URL: ${{ github.ref_name == 'main' && 'https://api.accesosport.com' || 'https://staging-api.accesosport.com' }}
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+            -t $ECR_REGISTRY/accesosport-frontend:$IMAGE_TAG \
+            .
+          docker push $ECR_REGISTRY/accesosport-frontend:$IMAGE_TAG
+
+      - name: Deploy to EC2 via SSH
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          SERVICE: ${{ github.ref_name == 'main' && 'frontend-prod' || 'frontend-staging' }}
+          ENV_KEY: ${{ github.ref_name == 'main' && 'FRONTEND_IMAGE_TAG' || 'FRONTEND_STAGING_IMAGE_TAG' }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ubuntu@${{ secrets.EC2_HOST }} "
+            cd ~/accesosport-infra/deploy
+            sed -i 's|${ENV_KEY}=.*|${ENV_KEY}=${IMAGE_TAG}|' .env
+            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            if [[ '${SERVICE}' == *staging* ]]; then
+              COMPOSE_ARGS='-f docker-compose.yml -f docker-compose.staging.yml'
+            else
+              COMPOSE_ARGS='-f docker-compose.yml'
+            fi
+            docker compose \$COMPOSE_ARGS pull ${SERVICE}
+            docker compose \$COMPOSE_ARGS up -d --no-deps ${SERVICE}
+            docker compose \$COMPOSE_ARGS ps ${SERVICE}
+          "

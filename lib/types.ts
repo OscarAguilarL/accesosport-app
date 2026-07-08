@@ -1,5 +1,15 @@
 // API Types based on OpenAPI spec
 
+export interface PagedResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
 export interface AuthResponse {
   id: string
   email: string
@@ -65,6 +75,9 @@ export interface EventResponse {
   galleryImages?: EventImageResponse[]
   createdAt?: string
   waiverTemplate?: string
+  maxCapacity?: number
+  registeredCount?: number
+  availableSpots?: number
 }
 
 export interface EventSummaryResponse {
@@ -87,6 +100,7 @@ export interface RegistrationResponse {
   status: 'PENDING_PAYMENT' | 'CONFIRMED' | 'CANCELLED'
   ticketCode: string
   registeredAt: string
+  paymentAccessToken?: string | null
 }
 
 export interface CreateEventRequest {
@@ -98,6 +112,7 @@ export interface CreateEventRequest {
   country?: string
   registrationStartDate: string
   registrationEndDate: string
+  maxCapacity: number
   modalities: CreateModalityRequest[]
 }
 
@@ -123,8 +138,52 @@ export interface OrganizerProfileResponse {
   description?: string
   verificationStatus?: string
   verifiedAt?: string
+  stripeAccountId?: string | null
+  stripeOnboardingCompleted?: boolean
   createdAt?: string
   updatedAt?: string
+}
+
+export interface CheckoutSessionResponse {
+  sessionId: string
+  checkoutUrl: string | null
+  paymentAlreadyCompleted: boolean
+}
+
+export type PaymentStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'REFUND_PENDING'
+  | 'REFUND_FAILED'
+  | 'MANUAL_REFUND_PENDING'
+  | 'REFUNDED'
+  | 'FAILED'
+
+export interface PaymentStatusResponse {
+  paymentStatus: PaymentStatus
+  paymentMethod: 'CARD' | 'OXXO' | null
+  amountTotal: number
+  baseAmount: number
+  serviceFee: number
+}
+
+export interface PricingBreakdownResponse {
+  basePrice: number
+  serviceFee: number
+  total: number
+}
+
+export interface ConnectOnboardingResponse {
+  onboardingUrl: string
+}
+
+export interface ConnectStatusResponse {
+  stripeAccountId: string | null
+  onboardingCompleted: boolean
+  transfersActive: boolean
+  payoutsActive: boolean
+  hasCurrentlyDueRequirements: boolean
+  status: 'NOT_CONNECTED' | 'ONBOARDING_REQUIRED' | 'STRIPE_REVIEW' | 'PAYOUTS_RESTRICTED' | 'READY'
 }
 
 export interface OrganizerProfileWithTokenResponse {
@@ -138,6 +197,36 @@ export interface CreateOrganizerProfileRequest {
   facebook?: string
   instagram?: string
   description?: string
+  invitationToken?: string
+}
+
+export interface InvitationValidationResponse {
+  email: string
+  accountExists: boolean
+}
+
+export type InvitationStatus = 'PENDING' | 'USED' | 'REVOKED'
+
+export interface InvitationResponse {
+  id: string
+  token: string
+  email: string
+  reason?: string
+  status: InvitationStatus
+  createdAt: string
+  usedAt?: string
+  revokedAt?: string
+}
+
+export interface CreateInvitationRequest {
+  email: string
+  reason?: string
+}
+
+export const INVITATION_STATUS_LABELS: Record<InvitationStatus, string> = {
+  PENDING: 'Pendiente',
+  USED: 'Usado',
+  REVOKED: 'Revocado',
 }
 
 export interface SavePersonalDataRequest {
@@ -254,9 +343,6 @@ export interface EventModalityResponse {
   distanceUnit: 'KM' | 'MI'
   price: number
   priceWithoutShirt?: number | null
-  capacity: number
-  registeredCount: number
-  availableSpots: number
 }
 
 export interface CreateModalityRequest {
@@ -265,7 +351,6 @@ export interface CreateModalityRequest {
   distanceUnit: 'KM' | 'MI'
   price: number
   priceWithoutShirt?: number | null
-  capacity: number
 }
 
 export interface EventCategoryResponse {
@@ -296,6 +381,22 @@ export interface CheckinTokenValidationResponse {
   eventName: string
 }
 
+export interface RegisterParticipantRequest {
+  participantEmail: string
+  participantFirstName: string
+  participantLastName: string
+  participantPhone?: string
+  modalityId?: string
+  categoryId?: string
+  waiverAccepted: boolean
+  wantsShirt: boolean
+  shirtSize?: ShirtSize
+  bloodType?: BloodType
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  medicalConditions?: string
+}
+
 export interface ParticipantInEventResponse {
   registrationId: string
   participantId: string
@@ -313,4 +414,21 @@ export interface ParticipantInEventResponse {
   kitPickedUpAt?: string | null
   registeredAt: string
   wantsShirt: boolean
+}
+
+export type OrganizerVerificationStatus = 'NOT_SUBMITTED' | 'PENDING_REVIEW' | 'VERIFIED' | 'REJECTED'
+
+export interface AdminOrganizerListItem {
+  organizerProfileId: string
+  userId: string
+  email: string
+  organizationName: string
+  logoUrl: string | null
+  verificationStatus: OrganizerVerificationStatus
+  verifiedAt: string | null
+  personalDataComplete: boolean
+  stripeLinked: boolean
+  stripeOnboardingCompleted: boolean
+  stripeTransfersActive: boolean
+  createdAt: string
 }

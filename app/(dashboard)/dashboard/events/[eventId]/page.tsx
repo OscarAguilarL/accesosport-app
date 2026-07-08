@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, use } from 'react'
+import { use } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -33,9 +32,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import { useToast } from '@/components/ui/use-toast'
-import { events as eventsApi, registrations as registrationsApi, modalities as modalitiesApi, checkin as checkinApi, ApiError } from '@/lib/api'
-import type { EventResponse, ParticipantInEventResponse, EventModalityResponse, CreateModalityRequest, CheckinTokenResponse } from '@/lib/types'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
+import { useEventDetail } from '@/lib/hooks/useEventDetail'
 import { EVENT_STATUS_LABELS } from '@/lib/types'
 import { Input } from '@/components/ui/input'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -59,8 +63,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatDate, formatDateTime, formatDateLong } from '@/lib/domain/formatting'
 
 const PARTICIPANTS_STATUSES = new Set(['REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'IN_PROGRESS', 'COMPLETED'])
 
@@ -70,207 +73,44 @@ const REGISTRATION_STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Cancelado',
 }
 
-function exportToCSV(participants: ParticipantInEventResponse[], eventName: string) {
-  const headers = ['Nombre', 'Email', 'Talla', 'Playera', 'Sangre', 'Contacto emergencia', 'Tel. emergencia', 'Estado']
-  const rows = participants.map(p => [
-    p.fullName, p.email, p.shirtSize, p.wantsShirt ? 'Sí' : 'No', p.bloodType,
-    p.emergencyContactName, p.emergencyContactPhone, p.status
-  ])
-  const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `inscritos-${eventName}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
 export default function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params)
-  const router = useRouter()
-  const { toast } = useToast()
-  const [event, setEvent] = useState<EventResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isActionLoading, setIsActionLoading] = useState(false)
-  const [participants, setParticipants] = useState<ParticipantInEventResponse[]>([])
-  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false)
-  const [eventModalities, setEventModalities] = useState<EventModalityResponse[]>([])
-  const [showModalityForm, setShowModalityForm] = useState(false)
-  const [modalityForm, setModalityForm] = useState<CreateModalityRequest>({ name: '', distance: 0, distanceUnit: 'KM', price: 0, priceWithoutShirt: null, capacity: 100 })
-  const [isSavingModality, setIsSavingModality] = useState(false)
-  const [modalityError, setModalityError] = useState<string | null>(null)
+  const detail = useEventDetail(eventId)
 
-  const [showQrModal, setShowQrModal] = useState(false)
-  const [qrTokenData, setQrTokenData] = useState<CheckinTokenResponse | null>(null)
-  const [isGeneratingQr, setIsGeneratingQr] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const qrCanvasRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const fetchEvent = async () => {
-      try {
-        const [data, mods] = await Promise.all([
-          eventsApi.get(eventId),
-          modalitiesApi.list(eventId).catch(() => [] as EventModalityResponse[]),
-        ])
-        setEvent(data)
-        setEventModalities(mods)
-        if (data.status && PARTICIPANTS_STATUSES.has(data.status)) {
-          setIsLoadingParticipants(true)
-          try {
-            const list = await registrationsApi.getByEvent(eventId)
-            setParticipants(list)
-          } catch (error) {
-            console.log('[v0] Error fetching participants:', error)
-          } finally {
-            setIsLoadingParticipants(false)
-          }
-        }
-      } catch (error) {
-        console.log('[v0] Error fetching event:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchEvent()
-  }, [eventId])
-
-  const handleAddModality = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSavingModality(true)
-    setModalityError(null)
-    try {
-      const created = await modalitiesApi.create(eventId, modalityForm)
-      setEventModalities((prev) => [...prev, created])
-      setModalityForm({ name: '', distance: 0, distanceUnit: 'KM', price: 0, priceWithoutShirt: null, capacity: 100 })
-      setShowModalityForm(false)
-    } catch (err) {
-      setModalityError(err instanceof ApiError ? (err.detail || err.message) : 'Error al crear la modalidad.')
-    } finally {
-      setIsSavingModality(false)
-    }
-  }
-
-  const handleDeleteModality = async (modalityId: string) => {
-    try {
-      await modalitiesApi.delete(eventId, modalityId)
-      setEventModalities((prev) => prev.filter((m) => m.id !== modalityId))
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: err instanceof ApiError ? (err.detail || err.message) : 'No se pudo eliminar la modalidad.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handlePublish = async () => {
-    if (!event?.id) return
-    setIsActionLoading(true)
-    try {
-      const updated = await eventsApi.publish(event.id)
-      setEvent(updated)
-      toast({ title: 'Evento publicado', description: 'El evento ya es visible para los participantes.' })
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: err instanceof ApiError ? (err.detail || err.message) : 'No se pudo publicar el evento.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsActionLoading(false)
-    }
-  }
-
-  const handleOpenRegistration = async () => {
-    if (!event?.id) return
-    setIsActionLoading(true)
-    try {
-      const updated = await eventsApi.openRegistration(event.id)
-      setEvent(updated)
-      toast({ title: 'Inscripciones abiertas', description: 'Los participantes ya pueden inscribirse.' })
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: err instanceof ApiError ? (err.detail || err.message) : 'No se pudieron abrir las inscripciones.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsActionLoading(false)
-    }
-  }
-
-  const handleComplete = async () => {
-    if (!event?.id) return
-    setIsActionLoading(true)
-    try {
-      const updated = await eventsApi.complete(event.id)
-      setEvent(updated)
-      toast({ title: 'Evento completado' })
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: err instanceof ApiError ? (err.detail || err.message) : 'No se pudo completar el evento.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsActionLoading(false)
-    }
-  }
-
-  const handleCancel = async () => {
-    if (!event?.id) return
-    setIsActionLoading(true)
-    try {
-      await eventsApi.cancel(event.id)
-      toast({ title: 'Evento cancelado', description: 'El evento ha sido cancelado correctamente.' })
-      router.push('/dashboard/events')
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: err instanceof ApiError ? (err.detail || err.message) : 'No se pudo cancelar el evento.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsActionLoading(false)
-    }
-  }
-
-  const checkinUrl = (token: string) => {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    return `${appUrl}/checkin/${eventId}?token=${token}`
-  }
-
-  const handleGenerateQr = async () => {
-    setIsGeneratingQr(true)
-    try {
-      const data = await checkinApi.generateToken(eventId)
-      setQrTokenData(data)
-      setShowQrModal(true)
-      setTimeout(async () => {
-        if (qrCanvasRef.current) {
-          const QRCode = await import('qrcode')
-          await QRCode.toCanvas(qrCanvasRef.current, checkinUrl(data.token), { width: 240 })
-        }
-      }, 50)
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: err instanceof ApiError ? (err.detail || err.message) : 'Error al generar el QR.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsGeneratingQr(false)
-    }
-  }
-
-  const handleCopyLink = async () => {
-    if (!qrTokenData) return
-    await navigator.clipboard.writeText(checkinUrl(qrTokenData.token))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+  const {
+    event,
+    participants,
+    participantPage,
+    participantTotalPages,
+    setParticipantPage,
+    eventModalities,
+    stats,
+    isLoading,
+    isActionLoading,
+    isLoadingParticipants,
+    showModalityForm,
+    setShowModalityForm,
+    modalityForm,
+    setModalityForm,
+    isSavingModality,
+    modalityError,
+    handleAddModality,
+    handleDeleteModality,
+    handlePublish,
+    handleOpenRegistration,
+    handleComplete,
+    handleCancel,
+    exportToCSV,
+    showQrModal,
+    setShowQrModal,
+    qrTokenData,
+    isGeneratingQr,
+    copied,
+    qrCanvasRef,
+    handleGenerateQr,
+    handleCopyLink,
+    checkinUrl,
+  } = detail
 
   if (isLoading) {
     return (
@@ -299,9 +139,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
   }
 
   const statusInfo = EVENT_STATUS_LABELS[event.status || 'DRAFT']
-  const totalRegistered = eventModalities.reduce((s, m) => s + m.registeredCount, 0)
-  const totalCapacity = eventModalities.reduce((s, m) => s + m.capacity, 0)
-  const totalAvailable = eventModalities.reduce((s, m) => s + m.availableSpots, 0)
+  const { totalRegistered, totalCapacity, totalAvailable } = stats
 
   return (
     <DashboardLayout title={event.name || 'Detalle del Evento'} description="">
@@ -461,7 +299,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
             {event.eventDate && (
               <span className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                {format(new Date(event.eventDate), "d 'de' MMMM 'de' yyyy", { locale: es })}
+                {formatDateLong(event.eventDate)}
               </span>
             )}
             {event.location?.city && (
@@ -495,13 +333,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Fecha del evento</p>
                     <p className="text-foreground">
-                      {event.eventDate
-                        ? format(new Date(event.eventDate), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
-                        : '-'}
+                      {event.eventDate ? formatDateLong(event.eventDate) : '-'}
                     </p>
                     {event.eventDate && (
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(event.eventDate), 'HH:mm', { locale: es })} hrs
+                        {new Date(event.eventDate).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })} hrs
                       </p>
                     )}
                   </div>
@@ -534,9 +370,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <div>
                     <p className="text-sm text-muted-foreground">Inicio</p>
                     <p className="font-medium">
-                      {event.registrationPeriod?.start
-                        ? format(new Date(event.registrationPeriod.start), "d MMM yyyy, HH:mm", { locale: es })
-                        : '-'}
+                      {event.registrationPeriod?.start ? formatDateTime(event.registrationPeriod.start) : '-'}
                     </p>
                   </div>
                 </div>
@@ -546,9 +380,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <div>
                     <p className="text-sm text-muted-foreground">Fin</p>
                     <p className="font-medium">
-                      {event.registrationPeriod?.end
-                        ? format(new Date(event.registrationPeriod.end), "d MMM yyyy, HH:mm", { locale: es })
-                        : '-'}
+                      {event.registrationPeriod?.end ? formatDateTime(event.registrationPeriod.end) : '-'}
                     </p>
                   </div>
                 </div>
@@ -565,7 +397,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <CardDescription>Distancias disponibles para este evento</CardDescription>
                 </div>
                 {(event.status === 'DRAFT' || event.status === 'PUBLISHED') && (
-                  <Button size="sm" variant="outline" onClick={() => setShowModalityForm((v) => !v)}>
+                  <Button size="sm" variant="outline" onClick={() => setShowModalityForm(!showModalityForm)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Agregar
                   </Button>
@@ -629,17 +461,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                           required
                         />
                       </Field>
-                      <Field>
-                        <FieldLabel htmlFor="mCapacity">Cupo *</FieldLabel>
-                        <Input
-                          id="mCapacity"
-                          type="number"
-                          value={modalityForm.capacity}
-                          onChange={(e) => setModalityForm({ ...modalityForm, capacity: parseInt(e.target.value) })}
-                          min={1}
-                          required
-                        />
-                      </Field>
                     </div>
                     <Field>
                       <FieldLabel htmlFor="mPriceWithoutShirt">Precio sin playera ($)</FieldLabel>
@@ -670,10 +491,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <div>
                     <p className="font-medium">{m.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {m.distance} {m.distanceUnit} · ${m.price.toFixed(2)} · {m.registeredCount}/{m.capacity} inscritos
+                      {m.distance} {m.distanceUnit} · ${m.price.toFixed(2)}
                     </p>
                   </div>
-                  {(event.status === 'DRAFT' || event.status === 'PUBLISHED') && m.registeredCount === 0 && (
+                  {(event.status === 'DRAFT' || event.status === 'PUBLISHED') && (
                     <Button size="icon" variant="ghost" onClick={() => handleDeleteModality(m.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -757,9 +578,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Creado</span>
                 <span>
-                  {event.createdAt
-                    ? format(new Date(event.createdAt), 'd MMM yyyy', { locale: es })
-                    : '-'}
+                  {event.createdAt ? formatDate(event.createdAt) : '-'}
                 </span>
               </div>
             </CardContent>
@@ -786,7 +605,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => exportToCSV(participants, event.name ?? 'evento')}
+                    onClick={exportToCSV}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Exportar CSV
@@ -850,12 +669,37 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                           </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {format(new Date(p.registeredAt), "d MMM yyyy, HH:mm", { locale: es })}
+                          {formatDateTime(p.registeredAt)}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+              )}
+              {participantTotalPages > 1 && (
+                <Pagination className="mt-4">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setParticipantPage(Math.max(0, participantPage - 1))}
+                        aria-disabled={participantPage === 0}
+                        className={participantPage === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <span className="px-3 py-1 text-sm text-muted-foreground">
+                        Página {participantPage + 1} de {participantTotalPages}
+                      </span>
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setParticipantPage(Math.min(participantTotalPages - 1, participantPage + 1))}
+                        aria-disabled={participantPage >= participantTotalPages - 1}
+                        className={participantPage >= participantTotalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               )}
             </CardContent>
           </Card>
@@ -878,8 +722,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                   {checkinUrl(qrTokenData.token)}
                 </p>
                 <p className="text-muted-foreground">
-                  Expira el{' '}
-                  {format(new Date(qrTokenData.expiresAt), "d MMM yyyy 'a las' HH:mm", { locale: es })}
+                  Expira el {formatDateTime(qrTokenData.expiresAt)}
                 </p>
               </div>
               <Button className="w-full" variant="outline" onClick={handleCopyLink}>

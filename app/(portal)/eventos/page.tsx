@@ -8,34 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { CalendarDays, MapPin, Trophy, SlidersHorizontal, X, Clock } from 'lucide-react'
-
-function formatDateShort(dateString?: string): string {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('es-MX', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-function formatPrice(price?: number): string {
-  if (price === undefined || price === null) return ''
-  if (price === 0) return 'Gratis'
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  }).format(price)
-}
+import { formatDateShort, formatPrice } from '@/lib/domain/formatting'
+import { isSoldOut, isLastSpots } from '@/lib/domain/events'
 
 function EventCard({ event, isUpcoming = false }: { event: EventSummaryResponse; isUpcoming?: boolean }) {
   const [imgError, setImgError] = useState(false)
-  const isSoldOut = event.totalAvailableSpots === 0
-  const isLastSpots =
-    event.totalAvailableSpots !== undefined &&
-    event.totalAvailableSpots > 0 &&
-    event.totalAvailableSpots <= 15
+  const soldOut = isSoldOut(event)
+  const lastSpots = isLastSpots(event)
 
   return (
     <Link
@@ -64,7 +43,7 @@ function EventCard({ event, isUpcoming = false }: { event: EventSummaryResponse;
       )}
 
       {/* Sold out overlay */}
-      {isSoldOut && !isUpcoming && (
+      {soldOut && !isUpcoming && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           <span className="font-barlow-condensed rounded-lg border-2 border-white/60 px-5 py-2 text-2xl font-extrabold uppercase tracking-widest text-white/80">
             Agotado
@@ -85,7 +64,7 @@ function EventCard({ event, isUpcoming = false }: { event: EventSummaryResponse;
             {formatPrice(event.minPrice)}
           </span>
         )}
-        {!isUpcoming && isLastSpots && (
+        {!isUpcoming && lastSpots && (
           <span className="rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow">
             ¡Últimos lugares!
           </span>
@@ -122,7 +101,10 @@ function EventCard({ event, isUpcoming = false }: { event: EventSummaryResponse;
 export default function EventosPage() {
   const [availableEvents, setAvailableEvents] = useState<EventSummaryResponse[]>([])
   const [publishedEvents, setPublishedEvents] = useState<EventSummaryResponse[]>([])
+  const [hasMoreAvailable, setHasMoreAvailable] = useState(false)
+  const [availablePage, setAvailablePage] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [dateFrom, setDateFrom] = useState('')
@@ -130,12 +112,14 @@ export default function EventosPage() {
 
   useEffect(() => {
     Promise.all([
-      eventsApi.listAvailable().catch((err) => { throw err }),
-      eventsApi.listPublished().catch(() => [] as EventSummaryResponse[]),
+      eventsApi.listAvailable(0).catch((err) => { throw err }),
+      eventsApi.listPublished(0, 100).catch(() => null),
     ])
       .then(([available, published]) => {
-        setAvailableEvents(available)
-        setPublishedEvents(published)
+        setAvailableEvents(available.content)
+        setHasMoreAvailable(available.hasNext)
+        setAvailablePage(0)
+        if (published) setPublishedEvents(published.content)
       })
       .catch((err) => {
         setError(
@@ -144,6 +128,21 @@ export default function EventosPage() {
       })
       .finally(() => setIsLoading(false))
   }, [])
+
+  const loadMoreAvailable = async () => {
+    setIsLoadingMore(true)
+    try {
+      const nextPage = availablePage + 1
+      const res = await eventsApi.listAvailable(nextPage)
+      setAvailableEvents((prev) => [...prev, ...res.content])
+      setHasMoreAvailable(res.hasNext)
+      setAvailablePage(nextPage)
+    } catch {
+      // best-effort
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }
 
   const applyDateFilter = (events: EventSummaryResponse[]) =>
     events.filter((event) => {
@@ -282,6 +281,18 @@ export default function EventosPage() {
               <EventCard key={event.id} event={event} />
             ))}
           </div>
+          {hasMoreAvailable && !dateFrom && !dateTo && (
+            <div className="mt-8 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={loadMoreAvailable}
+                disabled={isLoadingMore}
+                className="border-[#fb5d02] text-[#fb5d02] hover:bg-[#fb5d02]/5"
+              >
+                {isLoadingMore ? 'Cargando...' : 'Cargar más eventos'}
+              </Button>
+            </div>
+          )}
         </section>
       )}
 

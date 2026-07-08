@@ -49,6 +49,11 @@ function OrganizerLoginForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        {redirectTo && (
+          <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">
+            Tu sesión expiró. Inicia sesión nuevamente para continuar.
+          </div>
+        )}
         {error && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -108,13 +113,7 @@ export default function OrganizerLoginPage() {
           <Suspense fallback={<Spinner className="mx-auto" />}>
             <OrganizerLoginForm />
           </Suspense>
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            ¿No tienes una cuenta?{' '}
-            <Link href="/organizadores/registro" className="font-medium text-primary hover:underline">
-              Regístrate como organizador
-            </Link>
-          </div>
-          <div className="mt-3 text-center text-xs text-muted-foreground">
+          <div className="mt-6 text-center text-xs text-muted-foreground">
             <Link href="/" className="hover:underline">
               ← Volver al portal
             </Link>

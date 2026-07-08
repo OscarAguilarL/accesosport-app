@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { events as eventsApi, categories as categoriesApi, ApiError } from '@/lib/api'
-import type { CreateEventRequest, CreateModalityRequest, CreateCategoryRequest, EventModalityResponse } from '@/lib/types'
+import type { CreateEventRequest, UpdateEventRequest, CreateModalityRequest, CreateCategoryRequest, EventModalityResponse } from '@/lib/types'
 import { ArrowLeft, Calendar, MapPin, Users, Activity, ImageIcon, Plus, Trash2, Tag } from 'lucide-react'
 import { ImageDropzone } from '@/components/ui/image-dropzone'
 import { DateTimePicker } from '@/components/ui/datetime-picker'
@@ -20,7 +20,7 @@ const STEPS = [
   { title: 'Información Básica',  description: 'Nombre y descripción del evento' },
   { title: 'Fecha y Ubicación',   description: 'Cuándo y dónde se realizará' },
   { title: 'Inscripciones',       description: 'Período de inscripción' },
-  { title: 'Modalidades',         description: 'Distancias, precios y cupos' },
+  { title: 'Modalidades',         description: 'Distancias y precios por distancia' },
   { title: 'Categorías',          description: 'Categorías por edad (opcional)' },
   { title: 'Imágenes',            description: 'Portada y galería del evento' },
 ]
@@ -35,7 +35,6 @@ const emptyModality = (): ModalityDraft => ({
   distanceUnit: 'KM',
   price: 0,
   priceWithoutShirt: null,
-  capacity: 0,
 })
 
 const emptyCategory = (): CategoryDraft => ({
@@ -57,7 +56,7 @@ export default function CreateEventPage() {
 
   const [basicInfo, setBasicInfo] = useState({ name: '', description: '' })
   const [location, setLocation] = useState({ eventDate: '', place: '', city: '', country: '' })
-  const [registration, setRegistration] = useState({ registrationStartDate: '', registrationEndDate: '' })
+  const [registration, setRegistration] = useState({ registrationStartDate: '', registrationEndDate: '', maxCapacity: 0 })
   const [modalities, setModalities] = useState<ModalityDraft[]>([emptyModality()])
   const [categories, setCategories] = useState<CategoryDraft[]>([])
   const [createdModalities, setCreatedModalities] = useState<EventModalityResponse[]>([])
@@ -92,13 +91,32 @@ export default function CreateEventPage() {
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (modalities.some(m => !m.name.trim() || m.distance <= 0 || m.capacity <= 0)) {
-      setError('Completa todos los campos de cada modalidad (nombre, distancia y cupo son obligatorios).')
+    if (modalities.some(m => !m.name.trim() || m.distance <= 0)) {
+      setError('Completa todos los campos de cada modalidad (nombre y distancia son obligatorios).')
+      return
+    }
+    if (registration.maxCapacity <= 0) {
+      setError('El cupo total del evento debe ser mayor a cero.')
       return
     }
     setIsLoading(true)
     setError(null)
     try {
+      if (createdEventId) {
+        const updatePayload: UpdateEventRequest = {
+          name: basicInfo.name,
+          description: basicInfo.description || undefined,
+          eventDate: location.eventDate,
+          place: location.place,
+          city: location.city || undefined,
+          country: location.country || undefined,
+          registrationStartDate: registration.registrationStartDate,
+          registrationEndDate: registration.registrationEndDate,
+        }
+        await eventsApi.update(createdEventId, updatePayload)
+        setStep(4)
+        return
+      }
       const payload: CreateEventRequest = {
         name: basicInfo.name,
         description: basicInfo.description || undefined,
@@ -108,6 +126,7 @@ export default function CreateEventPage() {
         country: location.country || undefined,
         registrationStartDate: registration.registrationStartDate,
         registrationEndDate: registration.registrationEndDate,
+        maxCapacity: registration.maxCapacity,
         modalities: modalities.map(({ _id, ...m }) => m),
       }
       const event = await eventsApi.create(payload)
@@ -322,26 +341,39 @@ export default function CreateEventPage() {
               </CardHeader>
               <CardContent>
                 <FieldGroup>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel>Inicio de Inscripciones *</FieldLabel>
-                      <DateTimePicker
-                        value={registration.registrationStartDate}
-                        onChange={v => setRegistration(p => ({ ...p, registrationStartDate: v }))}
-                        placeholder="Seleccionar fecha de apertura"
-                        required
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel>Fin de Inscripciones *</FieldLabel>
-                      <DateTimePicker
-                        value={registration.registrationEndDate}
-                        onChange={v => setRegistration(p => ({ ...p, registrationEndDate: v }))}
-                        placeholder="Seleccionar fecha de cierre"
-                        required
-                      />
-                    </Field>
-                  </div>
+                  <Field>
+                    <FieldLabel>Inicio de Inscripciones *</FieldLabel>
+                    <DateTimePicker
+                      value={registration.registrationStartDate}
+                      onChange={v => setRegistration(p => ({ ...p, registrationStartDate: v }))}
+                      placeholder="Seleccionar fecha de apertura"
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Fin de Inscripciones *</FieldLabel>
+                    <DateTimePicker
+                      value={registration.registrationEndDate}
+                      onChange={v => setRegistration(p => ({ ...p, registrationEndDate: v }))}
+                      placeholder="Seleccionar fecha de cierre"
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="maxCapacity">
+                      <Users className="mr-2 inline h-4 w-4" />
+                      Cupo total del evento *
+                    </FieldLabel>
+                    <Input
+                      id="maxCapacity"
+                      type="number"
+                      value={registration.maxCapacity || ''}
+                      onChange={e => setRegistration(p => ({ ...p, maxCapacity: parseInt(e.target.value) || 0 }))}
+                      placeholder="500"
+                      min={1}
+                      required
+                    />
+                  </Field>
                   <div className="flex justify-between">
                     <Button type="button" variant="outline" onClick={handleBack}>Atrás</Button>
                     <Button type="submit">Continuar</Button>
@@ -362,7 +394,7 @@ export default function CreateEventPage() {
                   {STEPS[3].title}
                 </CardTitle>
                 <CardDescription>
-                  Agrega las distancias disponibles. Cada modalidad tiene su propio precio y cupo de participantes.
+                  Agrega las distancias disponibles. El cupo total del evento ya fue definido en el paso anterior.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -444,18 +476,6 @@ export default function CreateEventPage() {
                         />
                       </Field>
 
-                      <Field>
-                        <FieldLabel htmlFor={`capacity-${m._id}`}>Cupo de participantes *</FieldLabel>
-                        <Input
-                          id={`capacity-${m._id}`}
-                          type="number"
-                          value={m.capacity || ''}
-                          onChange={e => updateModality(m._id, 'capacity', parseInt(e.target.value) || 0)}
-                          placeholder="500"
-                          min={1}
-                          required
-                        />
-                      </Field>
                     </div>
                   ))}
 

@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
-import { events as eventsApi, profile as profileApi, registrations as registrationsApi, modalities as modalitiesApi, categories as categoriesApi, ApiError } from '@/lib/api'
-import type { EventResponse, ParticipantProfileResponse, CreateParticipantProfileRequest, ShirtSize, BloodType, Gender, EventModalityResponse, EventCategoryResponse } from '@/lib/types'
-import { useAuth } from '@/lib/auth-context'
+import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
+import type { ShirtSize, BloodType, PricingBreakdownResponse } from '@/lib/types'
+import { useRegistrationFlow } from '@/lib/hooks/useRegistrationFlow'
+import { formatPrice, formatDateLong } from '@/lib/domain/formatting'
+import { payments as paymentsApi, savePaymentAccessToken, getPaymentAccessToken } from '@/lib/api/payments'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -14,8 +15,6 @@ import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { CheckCircle, ChevronLeft, ScrollText, X } from 'lucide-react'
-
-type Step = 'profile' | 'modality' | 'category' | 'confirm' | 'success'
 
 const SHIRT_SIZE_OPTIONS: { value: ShirtSize; label: string }[] = [
   { value: 'SIZE_XS', label: 'XS' },
@@ -37,244 +36,88 @@ const BLOOD_TYPE_OPTIONS: { value: BloodType; label: string }[] = [
   { value: 'O_NEGATIVE', label: 'O-' },
 ]
 
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [
-  { value: 'FEMENIL', label: 'Femenil' },
-  { value: 'VARONIL', label: 'Varonil' },
-  { value: 'OTRO', label: 'Otro' },
-]
-
-function formatDate(dateString?: string): string {
-  if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString('es-MX', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
-
-function formatPrice(price?: number): string {
-  if (price === undefined || price === null) return '-'
-  if (price === 0) return 'Gratis'
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(price)
-}
-
-function isProfileComplete(p: ParticipantProfileResponse): boolean {
-  return !!(p.shirtSize && p.bloodType && p.emergencyContactName && p.emergencyContactPhone)
-}
-
 export default function InscribirsePage() {
   const params = useParams()
-  const router = useRouter()
   const eventId = params.eventId as string
-  const { user, isAuthenticated, isLoading: isAuthLoading, refreshUser } = useAuth()
+  const flow = useRegistrationFlow(eventId)
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [pricingBreakdown, setPricingBreakdown] = useState<PricingBreakdownResponse | null>(null)
 
-  const [step, setStep] = useState<Step>('profile')
-  const [event, setEvent] = useState<EventResponse | null>(null)
-  const [eventModalities, setEventModalities] = useState<EventModalityResponse[]>([])
-  const [eventCategories, setEventCategories] = useState<EventCategoryResponse[]>([])
-  const [selectedModality, setSelectedModality] = useState<EventModalityResponse | null>(null)
-  const [selectedCategory, setSelectedCategory] = useState<EventCategoryResponse | null>(null)
-  const [isPageLoading, setIsPageLoading] = useState(true)
-  const [ticketCode, setTicketCode] = useState<string>('')
-
-  const [profileFormData, setProfileFormData] = useState<CreateParticipantProfileRequest>({
-    shirtSize: 'SIZE_M',
-    bloodType: 'O_POSITIVE',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    medicalConditions: '',
-    phone: '',
-    gender: 'FEMENIL',
-  })
-  const [profileExists, setProfileExists] = useState(false)
-  const [showProfileForm, setShowProfileForm] = useState(false)
-  const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [profileError, setProfileError] = useState<string | null>(null)
-
-  const [wantsShirt, setWantsShirt] = useState<boolean | null>(null)
-  const [isRegistering, setIsRegistering] = useState(false)
-  const [registerError, setRegisterError] = useState<string | null>(null)
-
-  const [waiverRead, setWaiverRead] = useState(false)
-  const [waiverAccepted, setWaiverAccepted] = useState(false)
-  const [showWaiverModal, setShowWaiverModal] = useState(false)
-  const [waiverAcceptedAtTime, setWaiverAcceptedAtTime] = useState<Date | null>(null)
+  const {
+    event,
+    eventModalities,
+    eventCategories,
+    relevantCategories,
+    selectedModality,
+    selectedCategory,
+    ticketCode,
+    allSteps,
+    currentStepIndex,
+    suggestedCategory,
+    participantAge,
+    effectivePrice,
+    hasModalities,
+    hasCategories,
+    step,
+    setStep,
+    handleSelectModality,
+    setSelectedCategory,
+    wantsShirt,
+    setWantsShirt,
+    waiverRead,
+    waiverAccepted,
+    setWaiverAccepted,
+    waiverAcceptedAtTime,
+    showWaiverModal,
+    setShowWaiverModal,
+    participantFormData,
+    setParticipantFormData,
+    profileError,
+    handleNextFromProfile,
+    isRegistering,
+    registerError,
+    handleRegister,
+    isPageLoading,
+  } = flow
 
   useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent(`/eventos/${eventId}/inscribirse`)}`)
+    if (effectivePrice > 0) {
+      setPricingBreakdown(null)
+      paymentsApi.getFeeBreakdown(effectivePrice).then(setPricingBreakdown)
     }
-  }, [isAuthenticated, isAuthLoading, router, eventId])
+  }, [effectivePrice])
 
-  useEffect(() => {
-    if (!isAuthenticated) return
-
-    Promise.all([
-      eventsApi.get(eventId),
-      modalitiesApi.list(eventId).catch(() => [] as EventModalityResponse[]),
-      categoriesApi.list(eventId).catch(() => [] as EventCategoryResponse[]),
-      profileApi.getParticipant().catch((err) => {
-        if (err instanceof ApiError && err.status === 404) return null
-        throw err
-      }),
-    ])
-      .then(([eventData, modalitiesData, categoriesData, profileData]) => {
-        setEvent(eventData)
-        setEventModalities(modalitiesData)
-        setEventCategories(categoriesData)
-        if (!profileData || !isProfileComplete(profileData)) {
-          if (profileData?.shirtSize) {
-            setProfileExists(true)
-            setProfileFormData({
-              shirtSize: profileData.shirtSize,
-              bloodType: profileData.bloodType ?? 'O_POSITIVE',
-              emergencyContactName: profileData.emergencyContactName ?? '',
-              emergencyContactPhone: profileData.emergencyContactPhone ?? '',
-              medicalConditions: profileData.medicalConditions ?? '',
-              phone: profileData.phone ?? '',
-              gender: profileData.gender ?? 'FEMENIL',
-            })
-          }
-          setShowProfileForm(true)
-        } else if (modalitiesData.length > 0) {
-          setStep('modality')
-        } else if (categoriesData.length > 0) {
-          setStep('category')
-        } else {
-          setStep('confirm')
-        }
-      })
-      .catch((err) => {
-        setProfileError(
-          err instanceof ApiError ? (err.detail || err.message) : 'Error al cargar los datos.'
-        )
-      })
-      .finally(() => setIsPageLoading(false))
-  }, [isAuthenticated, eventId])
-
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSavingProfile(true)
-    setProfileError(null)
+  const handlePaidRegister = async () => {
+    setCheckoutError(null)
+    const reg = await flow.handleRegister()
+    if (!reg || reg.status !== 'PENDING_PAYMENT') return
+    setIsRedirectingToStripe(true)
     try {
-      const payload = { ...profileFormData, medicalConditions: profileFormData.medicalConditions || undefined }
-      if (profileExists) {
-        await profileApi.updateParticipant(payload)
-      } else {
-        const result = await profileApi.createParticipant(payload)
-        localStorage.setItem('accessToken', result.token)
-        await refreshUser()
+      if (reg.paymentAccessToken) {
+        savePaymentAccessToken(reg.id, reg.paymentAccessToken)
       }
-      setShowProfileForm(false)
-      if (eventModalities.length > 0) {
-        setStep('modality')
-      } else if (eventCategories.length > 0) {
-        setStep('category')
-      } else {
-        setStep('confirm')
+      const accessToken = getPaymentAccessToken(reg.id)
+      const { checkoutUrl, paymentAlreadyCompleted } = await paymentsApi.createCheckoutSession(reg.id, accessToken)
+      if (paymentAlreadyCompleted) {
+        window.location.href = `/inscripcion/exitosa?registration_id=${reg.id}`
+        return
       }
-    } catch (err) {
-      setProfileError(
-        err instanceof ApiError ? (err.detail || err.message) : 'Error al guardar el perfil.'
-      )
-    } finally {
-      setIsSavingProfile(false)
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl
+      }
+    } catch {
+      setCheckoutError('No se pudo iniciar el pago. Intenta de nuevo.')
+      setIsRedirectingToStripe(false)
     }
   }
-
-  const handleSelectModality = (modality: EventModalityResponse) => {
-    setSelectedModality(modality)
-    setSelectedCategory(null)
-    setWantsShirt(modality.priceWithoutShirt != null ? null : true)
-    const relevantCategories = eventCategories.filter(
-      c => c.modalityId == null || c.modalityId === modality.id
-    )
-    if (relevantCategories.length > 0) {
-      setStep('category')
-    } else {
-      setStep('confirm')
-    }
-  }
-
-  const handleRegister = async () => {
-    setIsRegistering(true)
-    setRegisterError(null)
-    try {
-      const reg = await registrationsApi.register(eventId, selectedModality?.id, selectedCategory?.id, true, wantsShirt ?? true)
-      setTicketCode(reg.ticketCode)
-      setStep('success')
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 409) {
-          setRegisterError('Ya estás inscrito en este evento.')
-        } else if (err.status === 422) {
-          setRegisterError(
-            err.detail || 'No es posible completar la inscripción. Verifica que el evento tenga cupo y las inscripciones estén abiertas.'
-          )
-        } else {
-          setRegisterError(err.detail || err.message)
-        }
-      } else {
-        setRegisterError('Error al procesar la inscripción. Intenta de nuevo.')
-      }
-    } finally {
-      setIsRegistering(false)
-    }
-  }
-
-  if (isAuthLoading || isPageLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-8 w-8" />
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) return null
-
-  const hasModalities = eventModalities.length > 0
-  const relevantCategories = selectedModality
-    ? eventCategories.filter(c => c.modalityId == null || c.modalityId === selectedModality.id)
-    : eventCategories
-  const hasCategories = relevantCategories.length > 0
-
-  const allSteps: { key: Step; label: string; number: number }[] = (() => {
-    const steps: { key: Step; label: string }[] = [{ key: 'profile', label: 'Perfil' }]
-    if (hasModalities) steps.push({ key: 'modality', label: 'Modalidad' })
-    if (hasCategories || eventCategories.length > 0) steps.push({ key: 'category', label: 'Categoría' })
-    steps.push({ key: 'confirm', label: 'Confirmar' })
-    steps.push({ key: 'success', label: 'Listo' })
-    return steps.map((s, i) => ({ ...s, number: i + 1 }))
-  })()
-
-  const currentStepIndex = allSteps.findIndex((s) => s.key === step)
-
-  const participantAge = user?.birthDate
-    ? Math.floor((new Date().getTime() - new Date(user.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-    : null
-
-  const suggestedCategory = participantAge != null
-    ? relevantCategories.find(c => {
-        const minOk = c.minAge == null || participantAge >= c.minAge
-        const maxOk = c.maxAge == null || participantAge <= c.maxAge
-        return minOk && maxOk
-      }) ?? null
-    : null
-
-  const effectivePrice = selectedModality
-    ? (wantsShirt === false && selectedModality.priceWithoutShirt != null
-        ? selectedModality.priceWithoutShirt
-        : selectedModality.price)
-    : 0
-
-  const participantFullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Participante'
 
   function renderWaiverContent(template: string, includeAcceptedAt: boolean): React.ReactNode {
+    const participantFullName = flow.participantFullName
     const vars: Record<string, string> = {
       participantFullName,
       eventName: event?.name ?? '',
-      eventDate: event?.eventDate ? formatDate(event.eventDate) : '',
+      eventDate: event?.eventDate ? formatDateLong(event.eventDate) : '',
       ...(includeAcceptedAt && waiverAcceptedAtTime
         ? { waiverAcceptedAt: waiverAcceptedAtTime.toLocaleString('es-MX') }
         : {}),
@@ -312,6 +155,14 @@ export default function InscribirsePage() {
     return parts
   }
 
+  if (isPageLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Spinner className="h-8 w-8" />
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div className="flex items-center gap-3">
@@ -347,145 +198,144 @@ export default function InscribirsePage() {
         ))}
       </div>
 
-      {/* Step 1: Profile */}
+      {/* Step 1: Participant data */}
       {step === 'profile' && (
         <Card>
           <CardHeader>
-            <CardTitle>Perfil de participante</CardTitle>
+            <CardTitle>Datos del participante</CardTitle>
             <CardDescription>
-              {showProfileForm
-                ? 'Completa tu perfil antes de continuar con la inscripción.'
-                : 'Verificando tu perfil...'}
+              Ingresa tus datos para completar la inscripción.
             </CardDescription>
           </CardHeader>
-          {showProfileForm && (
-            <CardContent>
-              <form onSubmit={handleSaveProfile}>
-                <FieldGroup>
-                  {profileError && (
-                    <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                      {profileError}
-                    </div>
-                  )}
+          <CardContent>
+            <FieldGroup>
+              {profileError && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  {profileError}
+                </div>
+              )}
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="shirtSize">Talla de playera *</FieldLabel>
-                      <Select
-                        value={profileFormData.shirtSize}
-                        onValueChange={(v) => setProfileFormData({ ...profileFormData, shirtSize: v as ShirtSize })}
-                        required
-                      >
-                        <SelectTrigger id="shirtSize">
-                          <SelectValue placeholder="Selecciona tu talla" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SHIRT_SIZE_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="firstName">Nombre *</FieldLabel>
+                  <Input
+                    id="firstName"
+                    value={participantFormData.firstName}
+                    onChange={(e) => setParticipantFormData({ ...participantFormData, firstName: e.target.value })}
+                    placeholder="Tu nombre"
+                    required
+                  />
+                </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="bloodType">Tipo de sangre *</FieldLabel>
-                      <Select
-                        value={profileFormData.bloodType}
-                        onValueChange={(v) => setProfileFormData({ ...profileFormData, bloodType: v as BloodType })}
-                        required
-                      >
-                        <SelectTrigger id="bloodType">
-                          <SelectValue placeholder="Selecciona tu tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BLOOD_TYPE_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
+                <Field>
+                  <FieldLabel htmlFor="lastName">Apellido *</FieldLabel>
+                  <Input
+                    id="lastName"
+                    value={participantFormData.lastName}
+                    onChange={(e) => setParticipantFormData({ ...participantFormData, lastName: e.target.value })}
+                    placeholder="Tu apellido"
+                    required
+                  />
+                </Field>
+              </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="phone">Teléfono *</FieldLabel>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={profileFormData.phone}
-                        onChange={(e) => setProfileFormData({ ...profileFormData, phone: e.target.value })}
-                        placeholder="10 dígitos"
-                        required
-                      />
-                    </Field>
+              <Field>
+                <FieldLabel htmlFor="email">Email *</FieldLabel>
+                <Input
+                  id="email"
+                  type="email"
+                  value={participantFormData.email}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, email: e.target.value })}
+                  placeholder="tu@email.com"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">Recibirás tu boleto en este correo.</p>
+              </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="gender">Género *</FieldLabel>
-                      <Select
-                        value={profileFormData.gender}
-                        onValueChange={(v) => setProfileFormData({ ...profileFormData, gender: v as Gender })}
-                        required
-                      >
-                        <SelectTrigger id="gender">
-                          <SelectValue placeholder="Selecciona" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GENDER_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
+              <Field>
+                <FieldLabel htmlFor="phone">Teléfono</FieldLabel>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={participantFormData.phone}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, phone: e.target.value })}
+                  placeholder="10 dígitos (opcional)"
+                />
+              </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="emergencyName">Nombre del contacto de emergencia *</FieldLabel>
-                    <Input
-                      id="emergencyName"
-                      value={profileFormData.emergencyContactName}
-                      onChange={(e) => setProfileFormData({ ...profileFormData, emergencyContactName: e.target.value })}
-                      placeholder="Nombre completo"
-                      required
-                    />
-                  </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="bloodType">Tipo de sangre</FieldLabel>
+                  <Select
+                    value={participantFormData.bloodType}
+                    onValueChange={(v) => setParticipantFormData({ ...participantFormData, bloodType: v as BloodType })}
+                  >
+                    <SelectTrigger id="bloodType">
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BLOOD_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="emergencyPhone">Teléfono del contacto de emergencia *</FieldLabel>
-                    <Input
-                      id="emergencyPhone"
-                      type="tel"
-                      value={profileFormData.emergencyContactPhone}
-                      onChange={(e) => setProfileFormData({ ...profileFormData, emergencyContactPhone: e.target.value })}
-                      placeholder="10 dígitos"
-                      required
-                    />
-                  </Field>
+                <Field>
+                  <FieldLabel htmlFor="shirtSize">Talla de playera</FieldLabel>
+                  <Select
+                    value={participantFormData.shirtSize}
+                    onValueChange={(v) => setParticipantFormData({ ...participantFormData, shirtSize: v as ShirtSize })}
+                  >
+                    <SelectTrigger id="shirtSize">
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SHIRT_SIZE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
 
-                  <Field>
-                    <FieldLabel htmlFor="medicalConditions">Condiciones médicas</FieldLabel>
-                    <Textarea
-                      id="medicalConditions"
-                      value={profileFormData.medicalConditions}
-                      onChange={(e) => setProfileFormData({ ...profileFormData, medicalConditions: e.target.value })}
-                      placeholder="Alergias, enfermedades, medicamentos... (opcional)"
-                      rows={3}
-                    />
-                  </Field>
+              <Field>
+                <FieldLabel htmlFor="emergencyName">Contacto de emergencia</FieldLabel>
+                <Input
+                  id="emergencyName"
+                  value={participantFormData.emergencyContactName}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, emergencyContactName: e.target.value })}
+                  placeholder="Nombre completo (opcional)"
+                />
+              </Field>
 
-                  <Button type="submit" disabled={isSavingProfile}>
-                    {isSavingProfile ? (
-                      <>
-                        <Spinner className="mr-2" />
-                        Guardando...
-                      </>
-                    ) : (
-                      'Guardar y continuar'
-                    )}
-                  </Button>
-                </FieldGroup>
-              </form>
-            </CardContent>
-          )}
+              <Field>
+                <FieldLabel htmlFor="emergencyPhone">Teléfono de emergencia</FieldLabel>
+                <Input
+                  id="emergencyPhone"
+                  type="tel"
+                  value={participantFormData.emergencyContactPhone}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, emergencyContactPhone: e.target.value })}
+                  placeholder="10 dígitos (opcional)"
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="medicalConditions">Condiciones médicas</FieldLabel>
+                <Textarea
+                  id="medicalConditions"
+                  value={participantFormData.medicalConditions}
+                  onChange={(e) => setParticipantFormData({ ...participantFormData, medicalConditions: e.target.value })}
+                  placeholder="Alergias, enfermedades, medicamentos... (opcional)"
+                  rows={3}
+                />
+              </Field>
+
+              <Button type="button" onClick={handleNextFromProfile}>
+                Continuar
+              </Button>
+            </FieldGroup>
+          </CardContent>
         </Card>
       )}
 
@@ -501,16 +351,13 @@ export default function InscribirsePage() {
               <button
                 key={m.id}
                 onClick={() => handleSelectModality(m)}
-                disabled={m.availableSpots === 0}
-                className={`w-full rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-primary/5 ${
-                  m.availableSpots === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                }`}
+                className="w-full rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-primary/5 cursor-pointer"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">{m.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {m.distance} {m.distanceUnit} · {m.availableSpots > 0 ? `${m.availableSpots} lugares disponibles` : 'Sin lugares'}
+                      {m.distance} {m.distanceUnit}
                     </p>
                   </div>
                   <p className="text-lg font-bold shrink-0">{formatPrice(m.price)}</p>
@@ -611,13 +458,7 @@ export default function InscribirsePage() {
             <div className="border-t px-6 py-4">
               <Button
                 className="w-full"
-                onClick={() => {
-                  const now = new Date()
-                  setWaiverRead(true)
-                  setWaiverAccepted(true)
-                  setWaiverAcceptedAtTime(now)
-                  setShowWaiverModal(false)
-                }}
+                onClick={flow.handleAcceptWaiver}
               >
                 He leído y acepto
               </Button>
@@ -636,12 +477,18 @@ export default function InscribirsePage() {
           <CardContent className="space-y-4">
             <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
               <p className="font-semibold text-lg">{event.name}</p>
-              <p className="text-sm text-muted-foreground">{formatDate(event.eventDate)}</p>
+              <p className="text-sm text-muted-foreground">{formatDateLong(event.eventDate)}</p>
               {event.location && (
                 <p className="text-sm text-muted-foreground">
                   {[event.location.city, event.location.country].filter(Boolean).join(', ')}
                 </p>
               )}
+              <p className="text-sm text-muted-foreground">
+                Participante: <strong>{flow.participantFullName}</strong>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Boleto al email: <strong>{participantFormData.email}</strong>
+              </p>
               {selectedModality && (
                 <div className="mt-2 rounded-md bg-primary/10 p-2">
                   <p className="text-sm font-medium">Modalidad: {selectedModality.name}</p>
@@ -743,12 +590,47 @@ export default function InscribirsePage() {
 
             {effectivePrice > 0 ? (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Este evento tiene un costo de <strong>{formatPrice(effectivePrice)}</strong>.
-                  El pago en línea estará disponible próximamente.
-                </p>
-                <Button disabled className="w-full">
-                  Proceder al pago (próximamente)
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Inscripción</span>
+                    <span>{formatPrice(effectivePrice)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Cargo por servicio</span>
+                    <span>{pricingBreakdown ? formatPrice(pricingBreakdown.serviceFee) : '—'}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                    <span>Total</span>
+                    <span>{pricingBreakdown ? formatPrice(pricingBreakdown.total) : '—'}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Métodos de pago: tarjeta bancaria, OXXO
+                  </p>
+                </div>
+                {checkoutError && (
+                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                    {checkoutError}
+                  </div>
+                )}
+                <Button
+                  className="w-full"
+                  onClick={handlePaidRegister}
+                  disabled={
+                    !pricingBreakdown ||
+                    flow.isRegistering ||
+                    isRedirectingToStripe ||
+                    !waiverAccepted ||
+                    (selectedModality?.priceWithoutShirt != null && wantsShirt === null)
+                  }
+                >
+                  {flow.isRegistering || isRedirectingToStripe ? (
+                    <>
+                      <Spinner className="mr-2" />
+                      {isRedirectingToStripe ? 'Redirigiendo a pago...' : 'Procesando...'}
+                    </>
+                  ) : (
+                    'Ir a pagar'
+                  )}
                 </Button>
               </div>
             ) : (
@@ -783,7 +665,7 @@ export default function InscribirsePage() {
 
             <div className="rounded-lg border bg-muted/40 p-4 w-full space-y-2 text-left">
               <p className="font-semibold">{event.name}</p>
-              <p className="text-sm text-muted-foreground">{formatDate(event.eventDate)}</p>
+              <p className="text-sm text-muted-foreground">{formatDateLong(event.eventDate)}</p>
               {selectedModality && (
                 <p className="text-sm text-muted-foreground">Modalidad: {selectedModality.name}</p>
               )}
@@ -795,8 +677,12 @@ export default function InscribirsePage() {
               </p>
             </div>
 
+            <p className="text-sm text-muted-foreground">
+              Tu boleto fue enviado a <strong>{participantFormData.email}</strong>.
+            </p>
+
             <Button asChild className="w-full">
-              <Link href="/mis-inscripciones">Ver mis inscripciones</Link>
+              <Link href="/eventos">Ver más eventos</Link>
             </Button>
           </CardContent>
         </Card>
